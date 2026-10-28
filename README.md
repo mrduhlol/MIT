@@ -63,6 +63,18 @@ backend/.venv/bin/python scripts/generate_data.py
 
 Restart the backend after changing training data. Existing persisted replay state may need resetting before replaying changed fixtures.
 
+For browser checks (these reset local demo state), use an installed Chromium or install Playwright's browser:
+
+```bash
+cd frontend
+npx playwright install chromium  # only needed if Chromium is not installed
+npm run test:e2e
+```
+
+Override browser location with `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chromium` when needed. The verified suite includes 22 backend tests and 2 browser tests. Desktop/mobile captures are written to ignored `artifacts/`.
+
+Refresh the saved measured report with `backend/.venv/bin/python scripts/evaluate.py`; results are in `docs/evaluation-results.json`. See `docs/architecture.md` for extension points and the official sandbox integration boundary.
+
 ## Edit points
 
 | Path | Purpose |
