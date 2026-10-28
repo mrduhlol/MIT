@@ -5,13 +5,13 @@ web
 ## Stack
 React, TypeScript, Tailwind CSS, Python FastAPI, SQLite. Local prototype.
 ## Users
-SOC demo evaluators and incident investigators (audience inferred from the brief).
+Website administrators supervising the AI security agent for their own website and server; challenge evaluators can review its simulated workflow.
 ## Product Purpose
-Detect suspicious synthetic email, authentication and network activity, correlate campaigns, explain evidence, and recommend simulated defensive actions.
+Provide an advanced website security agent dashboard with scheduled patrols, telemetry charts, searchable logs, correlated incidents, evidence-backed investigation and individually approved defensive responses.
 ## Operating Context
-User confirmed that incident investigation and approval lead the dashboard. Guided replay, evidence review and individual human approvals are central.
+User clarified that this is the AI agent dashboard inside their own website management experience, and requested advanced graphs and logs. The agent overview leads; incident investigation and individual approval remain central. Patrols run in the backend independently of an open browser.
 ## Capabilities and Constraints
-No real attacks or containment. Every sandbox action requires explicit approval. Report measured synthetic evaluation metrics and model limitations. Official sandbox API is unspecified; local simulation is required until documented integration exists.
+Current implementation uses explicitly labeled simulated telemetry; a real website/server collector has not been connected. Do not display fabricated live CPU, memory, traffic or uptime measurements. No real attacks or containment. Every sandbox action requires explicit approval. Report measured synthetic evaluation metrics and model limitations. Official sandbox API is unspecified; local simulation is required until documented integration exists.
 ## Brand Commitments
 Professional dark-mode SOC dashboard. Product name: AI vs AI.
 ## Product Principles
