@@ -16,7 +16,7 @@ def features(event):
     return [
         int(event['source'] == 'email' and any(s in text for s in ['verify your account', 'confirm your password', 'sign in immediately', 'validate your credentials'])),
         int(event['source'] == 'email' and d.get('sender_domain') != d.get('claimed_domain')),
-        int(event['source'] == 'auth' and d.get('new_device', False) and d.get('travel_kmh', 0) > 900),
+        int(event['source'] == 'auth' and ((d.get('new_device', False) and d.get('travel_kmh', 0) > 900) or d.get('failed_attempts', 0) >= 5)),
         int(event['source'] == 'auth' and d.get('mfa_denials', 0) >= 5),
         int(event['source'] == 'network' and d.get('periodic', False) and d.get('rare_destination', False)),
         int(event['source'] == 'network' and d.get('bytes_out', 0) > 50_000_000 and d.get('rare_destination', False)),
@@ -46,6 +46,10 @@ class Detector:
         scores = {k: math.log(self.prior[k]) + sum(math.log(p if x else 1-p) for x,p in zip(vector, probs)) for k,probs in self.probs.items()}
         probability = 1/(1+math.exp(scores[0]-scores[1]))
         evidence = [{'feature': FEATURES[i], 'category': REASONS[i][0], 'explanation': REASONS[i][1]} for i,x in enumerate(vector) if x]
+        if event['source'] == 'auth' and event['details'].get('failed_attempts', 0) >= 5:
+            for item in evidence:
+                if item['feature'] == 'auth_anomaly':
+                    item['explanation'] = 'At least five failed authentication attempts were observed for this identity and source address in the collected batch. Investigate possible credential guessing; failure alone does not prove compromise.'
         return {'suspicious': probability >= .5, 'confidence': round(probability, 4), 'evidence': evidence}
 
     def evaluate(self, events):

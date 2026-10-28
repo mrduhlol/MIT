@@ -10,3 +10,5 @@ artifacts/
 test-results/
 playwright-report/
 *.tsbuildinfo
+.local-tls/
+.agent-state/

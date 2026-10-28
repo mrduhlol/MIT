@@ -68,6 +68,7 @@ def test_host_status_reflects_approved_simulation_only(store):
 
 def test_analytics_endpoint_rejects_unsupported_windows(tmp_path):
     with TestClient(create_app(tmp_path / 'api.sqlite')) as client:
+        client.headers['X-SOC-Token'] = client.get('/api/session').json()['token']
         assert client.get('/api/analytics?window_minutes=15').status_code == 200
         assert client.get('/api/analytics?window_minutes=30').status_code == 422
         assert client.get('/api/analytics?window_minutes=invalid').status_code == 422

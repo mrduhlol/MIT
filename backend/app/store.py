@@ -29,13 +29,22 @@ def correlate(events):
             i = parents[i]
         return i
 
-    for i, first in enumerate(events):
-        for j in range(i + 1, len(events)):
-            second = events[j]
-            if (datetime.fromisoformat(second['timestamp']) - datetime.fromisoformat(first['timestamp'])).total_seconds() > 1800:
-                break
-            if any(first.get(key) and first[key] == second.get(key) for key in ('identity', 'host', 'ip')):
-                parents[find(j)] = find(i)
+    # Linking each entity to its latest event yields the same connected
+    # components as all pairs within the window, without quadratic ingestion cost.
+    latest = {}
+    for i, event in enumerate(events):
+        timestamp = datetime.fromisoformat(event['timestamp'])
+        for key in ('identity', 'host', 'ip'):
+            value = event.get(key)
+            if not value:
+                continue
+            entity = (event.get('server_id'), key, value)
+            previous = latest.get(entity)
+            if previous is not None:
+                previous_index, previous_time = previous
+                if (timestamp - previous_time).total_seconds() <= 1800:
+                    parents[find(i)] = find(previous_index)
+            latest[entity] = (i, timestamp)
     groups = {}
     for i, event in enumerate(events):
         groups.setdefault(find(i), []).append(event)
@@ -56,6 +65,7 @@ def correlate(events):
                  'Suspicious account access' if 'credential compromise' in categories else 'Suspicious activity campaign')
         incident_id = 'inc-' + alerts[0]['id'].removeprefix('evt-')
         incidents.append({'id': incident_id, 'title': title, 'severity': severity,
+            'server_id': alerts[0].get('server_id'), 'telemetry_mode': alerts[0].get('telemetry_mode', 'simulated'),
             'confidence': max(e['confidence'] for e in alerts), 'status': 'open',
             'summary': f"{len(alerts)} suspicious events across {', '.join(sources)} telemetry are linked by shared identities, hosts, or source IPs within 30-minute adjacent-event windows. Observed behaviors: {', '.join(categories)}. Shared infrastructure is evidence of association, not proof of a single attacker.",
             'event_ids': [e['id'] for e in group], 'identities': identities, 'hosts': hosts,
@@ -128,8 +138,9 @@ class Store:
         start = time.perf_counter_ns()
         for fixture in rows:
             event = {k: v for k, v in fixture.items() if k != 'label'}
+            event.update(server_id=None, telemetry_mode='simulated')
             event.update(self.detector.predict(event))
-            db.execute('INSERT OR IGNORE INTO events VALUES (?,?)', (event['id'], json.dumps(event)))
+            db.execute('INSERT OR IGNORE INTO events(id,payload) VALUES (?,?)', (event['id'], json.dumps(event)))
         events = [json.loads(row['payload']) for row in db.execute('SELECT payload FROM events')]
         correlate(events)
         self.set_meta(db, 'last_batch', {'events': len(rows), 'latency_ms': (time.perf_counter_ns() - start) / 1_000_000,
@@ -160,6 +171,9 @@ class Store:
         with self.lock:
             db = self.conn
             events = sorted([json.loads(row['payload']) for row in db.execute('SELECT payload FROM events')], key=lambda e: e['timestamp'])
+            for event in events:
+                event.setdefault('server_id', None)
+                event.setdefault('telemetry_mode', 'simulated')
             actions = [dict(row) for row in db.execute('SELECT * FROM actions ORDER BY rowid')]
             incidents = correlate(events)
             for incident in incidents:
@@ -190,12 +204,17 @@ class Store:
 
     def reset(self):
         with self.transaction() as db:
-            db.execute('DELETE FROM events')
-            db.execute('DELETE FROM actions')
-            db.execute('DELETE FROM sandbox')
+            fixture_events = [json.loads(r['payload']) for r in db.execute('SELECT payload FROM events') if not json.loads(r['payload']).get('server_id')]
+            fixture_incidents = correlate(fixture_events)
+            for incident in fixture_incidents:
+                db.execute('DELETE FROM actions WHERE incident_id=?', (incident['id'],))
+            for event in fixture_events:
+                db.execute('DELETE FROM events WHERE id=?', (event['id'],))
+            # Registered-server targets always start with their generated srv- id.
+            db.execute("DELETE FROM sandbox WHERE target NOT LIKE 'srv-%::%'")
             self.set_meta(db, 'cursor', 0)
             self.set_meta(db, 'last_batch', None)
-            self.audit(db, 'analyst', 'simulation_reset', 'Cleared replay events, proposed responses, and isolated sandbox state; audit history preserved.')
+            self.audit(db, 'analyst', 'simulation_reset', 'Cleared fixture replay and fixture responses only; connected-server telemetry, responses and audit history preserved.')
         return self.dashboard()
 
     def investigate(self, incident_id):
@@ -212,10 +231,11 @@ class Store:
             targets = [('isolate_host', h) for h in incident['hosts']]
             if 'credential compromise' in incident['categories']:
                 targets.extend(('revoke_sessions', identity) for identity in incident['identities'])
-            for kind, target in targets:
+            for kind, display_target in targets:
+                target = f"{incident['server_id']}::{display_target}" if incident.get('server_id') else display_target
                 action_id = 'act-' + hashlib.sha256(f'{incident_id}:{kind}:{target}'.encode()).hexdigest()[:12]
-                reason = (f'Isolate {target} in the local simulation to interrupt suspicious communication.' if kind == 'isolate_host'
-                    else f'Revoke simulated sessions for {target} to limit suspected credential misuse.')
+                reason = (f'Isolate {display_target} in the local simulation to interrupt suspicious communication.' if kind == 'isolate_host'
+                    else f'Revoke simulated sessions for {display_target} to limit suspected credential misuse.')
                 db.execute('INSERT OR IGNORE INTO actions(id,incident_id,kind,target,status,reason) VALUES (?,?,?,?,?,?)',
                     (action_id, incident_id, kind, target, 'pending', reason))
             self.audit(db, 'local-model', 'incident_investigated', f'{incident_id}: evidence reviewed and response proposals prepared. No containment executed.')
@@ -275,9 +295,12 @@ class Store:
             coverage = []
             for source, label in labels.items():
                 rows = [e for e in events if e['source'] == source]
-                coverage.append({'source': source, 'label': label, 'status': 'simulated', 'events': len(rows),
+                coverage.append({'source': source, 'label': label, 'status': 'mixed' if len({e.get('telemetry_mode', 'simulated') for e in rows}) > 1 else 'reported' if any(e.get('telemetry_mode') == 'real' for e in rows) else 'simulated', 'events': len(rows),
                     'last_event_at': max((e['timestamp'] for e in rows), default=None)})
-            return {'mode': 'simulation', 'site': {'name': 'Demo website', 'environment': 'Local sandbox', 'collector_status': 'simulated'},
+            modes = {e.get('telemetry_mode', 'simulated') for e in events}
+            connected = any(e.get('server_id') for e in events)
+            mode = 'mixed' if len(modes) > 1 else 'real' if modes == {'real'} else 'simulation'
+            return {'mode': mode, 'site': {'name': 'Registered servers' if connected else 'Demo website', 'environment': 'Telemetry monitoring; containment stays simulated', 'collector_status': 'connected' if connected else 'simulated'},
                 'status': 'running' if self.patrol_lock.locked() else 'scheduled' if settings['enabled'] else 'paused',
                 'enabled': settings['enabled'], 'interval_seconds': settings['interval_seconds'],
                 'last_run_at': runs[0]['completed_at'] if runs else None, 'next_run_at': settings['next_run_at'],
@@ -369,7 +392,8 @@ class Store:
             if event['suspicious']:
                 for category in {item['category'] for item in event['evidence']}:
                     categories[category] = categories.get(category, 0) + 1
-            host = hosts.setdefault(event['host'], {'host': event['host'], 'identities': set(), 'events': 0,
+            host_key = f"{event['server_id']}::{event['host']}" if event.get('server_id') else event['host']
+            host = hosts.setdefault(host_key, {'host': event['host'], 'server_id': event.get('server_id'), 'identities': set(), 'events': 0,
                 'suspicious': 0, 'last_seen': event['timestamp'], 'status': 'observed'})
             host['identities'].add(event['identity'])
             host['events'] += 1
@@ -377,9 +401,9 @@ class Store:
             host['last_seen'] = max(host['last_seen'], event['timestamp'])
         for host in hosts.values():
             host['identities'] = sorted(host['identities'])
-            host['status'] = 'isolated' if host['host'] in isolated else 'attention' if host['suspicious'] else 'observed'
+            host['status'] = 'isolated' if (f"{host['server_id']}::{host['host']}" if host.get('server_id') else host['host']) in isolated else 'attention' if host['suspicious'] else 'observed'
         return {'window_minutes': window_minutes, 'anchor_at': anchor.isoformat() if anchor else None,
             'start_at': start.isoformat() if start else None, 'bucket_seconds': bucket_seconds, 'series': series,
             'sources': list(sources.values()), 'categories': [{'category': key, 'count': value} for key, value in sorted(categories.items())],
             'hosts': sorted(hosts.values(), key=lambda h: (-h['suspicious'], h['host'])), 'totals': totals,
-            'scope': 'Synthetic telemetry window anchored to the latest event timestamp, not wall-clock time. Auth failures sum denied MFA prompts and failed/denied login events. Categories count each category once per suspicious event. Empty telemetry has no time anchor or buckets.'}
+            'scope': 'Fixture and registered-server telemetry window anchored to the latest event timestamp, not wall-clock time. Auth failures sum denied MFA prompts and failed/denied login events. Categories count each category once per suspicious event. Empty telemetry has no time anchor or buckets.'}

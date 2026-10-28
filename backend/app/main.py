@@ -11,6 +11,8 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, Field, StrictBool
 from .store import Store
 from .patrol import PatrolScheduler
+from .servers import install_routes
+from .security import APISecurity
 
 
 class ReplayRequest(BaseModel):
@@ -38,25 +40,39 @@ def create_app(db_path=None):
         finally:
             app.state.scheduler.stop()
 
-    app = FastAPI(lifespan=lifespan, title='AI vs AI — Autonomous Cyber Defense', version='1.0.0', description='Synthetic telemetry and isolated simulated response only.')
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=['localhost', '127.0.0.1', '[::1]', 'testserver'])
+    app = FastAPI(lifespan=lifespan, title='AI vs AI — Autonomous Cyber Defense', version='1.0.0', description='Authenticated server telemetry and synthetic fixtures; all containment remains an isolated simulation.')
+    allowed_hosts = ['localhost', '127.0.0.1', '[::1]']
+    if db_path is not None:
+        allowed_hosts.append('testserver')
+    for host in os.environ.get('SOC_ALLOWED_HOSTS', '').split(','):
+        host = host.strip().lower()
+        if host:
+            import re
+            if '*' in host or not re.fullmatch(r'[a-z0-9.-]+|\[[0-9a-f:]+\]', host):
+                raise RuntimeError('SOC_ALLOWED_HOSTS must contain explicit hostnames, without wildcards, schemes or ports.')
+            allowed_hosts.append(host)
     app.state.store = Store(db_path or os.environ.get('SOC_DB_PATH', str(Path(__file__).resolve().parents[2] / 'soc.sqlite')))
     app.state.token = secrets.token_urlsafe(32)
     app.state.scheduler = PatrolScheduler(app.state.store)
+    app.add_middleware(APISecurity, state=app.state, test_context=db_path is not None)
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+
+    from fastapi.exceptions import RequestValidationError
+    from fastapi.responses import JSONResponse
+
+    @app.exception_handler(RequestValidationError)
+    async def safe_validation_error(request, exc):
+        # Never echo request inputs: enrollment requests contain credentials.
+        errors = [{'loc': list(error['loc']), 'type': error['type'], 'msg': 'Invalid request field.'} for error in exc.errors()]
+        return JSONResponse(status_code=422, content={'detail': errors})
 
     def authorize(request: Request, x_soc_token: str | None = Header(default=None)):
-        if not x_soc_token or not secrets.compare_digest(x_soc_token, app.state.token):
+        if not x_soc_token or not secrets.compare_digest(x_soc_token.encode('latin-1'), app.state.token.encode()):
             raise HTTPException(403, 'A valid local SOC session token is required.')
-        origin = request.headers.get('origin')
-        if origin:
-            from urllib.parse import urlsplit
-            parsed = urlsplit(origin)
-            if parsed.hostname not in ('localhost', '127.0.0.1', '[::1]', '::1'):
-                raise HTTPException(403, 'Cross-origin mutations are not allowed.')
 
     @app.get('/api/health')
     def health():
-        return {'status': 'ok', 'mode': 'isolated-local-simulation'}
+        return {'status': 'ok', 'mode': 'telemetry-monitoring-with-simulated-containment'}
 
     @app.get('/api/session')
     def session():
@@ -128,6 +144,8 @@ def create_app(db_path=None):
         if window_minutes not in (15, 60, 1440):
             raise HTTPException(422, 'window_minutes must be 15, 60 or 1440.')
         return app.state.store.analytics(window_minutes)
+
+    install_routes(app, authorize)
 
     dist = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
     if dist.is_dir():

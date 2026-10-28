@@ -109,6 +109,7 @@ def test_state_persists_across_application_restart(tmp_path):
         action, _ = proposal(client)
         assert decide(client,action).status_code == 200
     with TestClient(create_app(db)) as client:
+        client.headers['X-SOC-Token'] = client.get('/api/session').json()['token']
         data = client.get('/api/dashboard').json()
         assert next(a for a in data['actions'] if a['id']==action['id'])['status']=='approved'
         field = 'isolated_hosts' if action['kind']=='isolate_host' else 'revoked_identities'
