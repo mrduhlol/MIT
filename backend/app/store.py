@@ -1,11 +1,12 @@
 """SQLite-backed demo state. Containment only changes this isolated database."""
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import hashlib
 import json
 import sqlite3
 import time
+import uuid
 
 from .detection import Detector
 
@@ -74,6 +75,8 @@ class Store:
         # A retained connection makes :memory: useful to tests; access is lock-protected.
         import threading
         self.lock = threading.RLock()
+        self.patrol_lock = threading.Lock()
+        self.started_monotonic = time.monotonic()
         self.conn = sqlite3.connect(self.path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript('''
@@ -95,6 +98,10 @@ class Store:
                 self.set_meta(db, 'cursor', len(self.fixtures))
                 self.audit(db, 'system', 'demo_initialized', 'Loaded synthetic replay fixtures. No containment executed.')
             self.set_meta(db, 'metrics', self.evaluate())
+            if self.get_meta(db, 'agent_settings') is None:
+                self.set_meta(db, 'agent_settings', {'enabled': False, 'interval_seconds': 300, 'next_run_at': None})
+            if self.get_meta(db, 'agent_runs') is None:
+                self.set_meta(db, 'agent_runs', [])
 
     @contextmanager
     def transaction(self):
@@ -244,3 +251,131 @@ class Store:
                 self.audit(db, actor, 'action_rejected', f'{action_id}: {reason}')
             db.execute('UPDATE actions SET status=?,verification=? WHERE id=?', (status, verification, action_id))
             return dict(db.execute('SELECT * FROM actions WHERE id=?', (action_id,)).fetchone())
+
+
+    def agent_settings(self):
+        with self.lock:
+            return self.get_meta(self.conn, 'agent_settings')
+
+    def configure_agent(self, enabled, interval_seconds):
+        with self.transaction() as db:
+            settings = {'enabled': enabled, 'interval_seconds': interval_seconds,
+                'next_run_at': (datetime.now(timezone.utc) + timedelta(seconds=interval_seconds)).isoformat() if enabled else None}
+            self.set_meta(db, 'agent_settings', settings)
+            self.audit(db, 'analyst', 'agent_schedule_updated',
+                f"Synthetic patrol {'enabled' if enabled else 'paused'}; interval {interval_seconds} seconds. Containment still requires individual approval.")
+        return self.agent()
+
+    def agent(self):
+        with self.lock:
+            settings = self.get_meta(self.conn, 'agent_settings')
+            runs = self.get_meta(self.conn, 'agent_runs')
+            events = [json.loads(row['payload']) for row in self.conn.execute('SELECT payload FROM events')]
+            labels = {'email': 'Email gateway', 'auth': 'Authentication', 'network': 'Network flows'}
+            coverage = []
+            for source, label in labels.items():
+                rows = [e for e in events if e['source'] == source]
+                coverage.append({'source': source, 'label': label, 'status': 'simulated', 'events': len(rows),
+                    'last_event_at': max((e['timestamp'] for e in rows), default=None)})
+            return {'mode': 'simulation', 'site': {'name': 'Demo website', 'environment': 'Local sandbox', 'collector_status': 'simulated'},
+                'status': 'running' if self.patrol_lock.locked() else 'scheduled' if settings['enabled'] else 'paused',
+                'enabled': settings['enabled'], 'interval_seconds': settings['interval_seconds'],
+                'last_run_at': runs[0]['completed_at'] if runs else None, 'next_run_at': settings['next_run_at'],
+                'runs': runs, 'coverage': coverage, 'uptime_seconds': round(time.monotonic() - self.started_monotonic, 2)}
+
+    def patrol(self, trigger='manual'):
+        if not self.patrol_lock.acquire(blocking=False):
+            raise RuntimeError('A patrol is already running.')
+        started = now()
+        clock = time.perf_counter_ns()
+        run = {'id': 'run-' + uuid.uuid4().hex[:12], 'started_at': started, 'completed_at': None,
+            'duration_ms': 0, 'events_analyzed': 0, 'incidents_found': 0, 'suspicious_events': 0,
+            'trigger': trigger, 'status': 'completed'}
+        try:
+            try:
+                with self.transaction() as db:
+                    # Recheck under the database lock so pausing wins over a stale
+                    # scheduler wake-up. No catch-up loops or overlapping runs.
+                    settings = self.get_meta(db, 'agent_settings')
+                    if trigger == 'scheduled':
+                        due = settings['next_run_at']
+                        if not settings['enabled'] or not due or datetime.fromisoformat(due) > datetime.now(timezone.utc):
+                            return None
+                    events = [json.loads(row['payload']) for row in db.execute('SELECT payload FROM events')]
+                    analyzed = [{**e, **self.detector.predict(e)} for e in events]
+                    incidents = correlate(analyzed)
+                    run.update(events_analyzed=len(events), incidents_found=len(incidents),
+                        suspicious_events=sum(e['suspicious'] for e in analyzed))
+                # Investigation has its own transaction. It creates only pending
+                # recommendations and preserves every prior analyst decision.
+                run['investigated_incidents'] = 0
+                run['pending_recommendations'] = 0
+                for incident in incidents:
+                    investigation = self.investigate(incident['id'])
+                    run['investigated_incidents'] += 1
+                    run['pending_recommendations'] += sum(a['status'] == 'pending' for a in investigation['recommendations'])
+                with self.transaction() as db:
+                    self._record_patrol(db, run, clock)
+            except Exception as exc:
+                run['status'] = 'failed'
+                run['error'] = str(exc)[:300]
+                with self.transaction() as db:
+                    self._record_patrol(db, run, clock)
+            return run
+        finally:
+            self.patrol_lock.release()
+
+    def _record_patrol(self, db, run, clock):
+        run['completed_at'] = now()
+        run['duration_ms'] = round((time.perf_counter_ns() - clock) / 1_000_000, 3)
+        runs = self.get_meta(db, 'agent_runs')
+        self.set_meta(db, 'agent_runs', [run, *runs][:100])
+        settings = self.get_meta(db, 'agent_settings')
+        settings['next_run_at'] = (datetime.now(timezone.utc) + timedelta(seconds=settings['interval_seconds'])).isoformat() if settings['enabled'] else None
+        self.set_meta(db, 'agent_settings', settings)
+        self.audit(db, 'synthetic-agent', 'patrol_' + run['status'],
+            f"{run['id']} ({run['trigger']}): {run['events_analyzed']} events analyzed, {run['incidents_found']} incidents found. {run.get('pending_recommendations', 0)} pending recommendations after investigation. No actions approved or executed.")
+
+    def analytics(self, window_minutes):
+        with self.lock:
+            all_events = [json.loads(row['payload']) for row in self.conn.execute('SELECT payload FROM events')]
+            isolated = {row['target'] for row in self.conn.execute("SELECT target FROM sandbox WHERE kind='isolate_host'")}
+        buckets = 24 if window_minutes == 1440 else 12
+        bucket_seconds = window_minutes * 60 // buckets
+        anchor = max((datetime.fromisoformat(e['timestamp']) for e in all_events), default=None)
+        start = anchor - timedelta(minutes=window_minutes) if anchor else None
+        events = [e for e in all_events if start <= datetime.fromisoformat(e['timestamp']) <= anchor] if anchor else []
+        series = [{'timestamp': (start + timedelta(seconds=i*bucket_seconds)).isoformat(), 'events': 0,
+                   'suspicious': 0, 'auth_failures': 0, 'bytes_out': 0} for i in range(buckets)] if start else []
+        sources = {source: {'source': source, 'total': 0, 'suspicious': 0} for source in ('email', 'auth', 'network')}
+        categories = {}
+        hosts = {}
+        totals = {'events': 0, 'suspicious': 0, 'bytes_out': 0, 'auth_failures': 0}
+        for event in events:
+            details = event['details']
+            auth_failures = (int(details.get('result', '').lower() in ('failure', 'failed', 'denied')) + max(0, int(details.get('mfa_denials', 0)))) if event['source'] == 'auth' else 0
+            bytes_out = max(0, int(details.get('bytes_out', 0))) if event['source'] == 'network' else 0
+            measures = {'events': 1, 'suspicious': int(event['suspicious']), 'bytes_out': bytes_out, 'auth_failures': auth_failures}
+            index = min(buckets - 1, int((datetime.fromisoformat(event['timestamp']) - start).total_seconds() // bucket_seconds))
+            for key, value in measures.items():
+                totals[key] += value
+                series[index][key] += value
+            sources[event['source']]['total'] += 1
+            sources[event['source']]['suspicious'] += int(event['suspicious'])
+            if event['suspicious']:
+                for category in {item['category'] for item in event['evidence']}:
+                    categories[category] = categories.get(category, 0) + 1
+            host = hosts.setdefault(event['host'], {'host': event['host'], 'identities': set(), 'events': 0,
+                'suspicious': 0, 'last_seen': event['timestamp'], 'status': 'observed'})
+            host['identities'].add(event['identity'])
+            host['events'] += 1
+            host['suspicious'] += int(event['suspicious'])
+            host['last_seen'] = max(host['last_seen'], event['timestamp'])
+        for host in hosts.values():
+            host['identities'] = sorted(host['identities'])
+            host['status'] = 'isolated' if host['host'] in isolated else 'attention' if host['suspicious'] else 'observed'
+        return {'window_minutes': window_minutes, 'anchor_at': anchor.isoformat() if anchor else None,
+            'start_at': start.isoformat() if start else None, 'bucket_seconds': bucket_seconds, 'series': series,
+            'sources': list(sources.values()), 'categories': [{'category': key, 'count': value} for key, value in sorted(categories.items())],
+            'hosts': sorted(hosts.values(), key=lambda h: (-h['suspicious'], h['host'])), 'totals': totals,
+            'scope': 'Synthetic telemetry window anchored to the latest event timestamp, not wall-clock time. Auth failures sum denied MFA prompts and failed/denied login events. Categories count each category once per suspicious event. Empty telemetry has no time anchor or buckets.'}

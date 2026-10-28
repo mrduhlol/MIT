@@ -1,5 +1,6 @@
 """Local-only SOC API. Run with uvicorn app.main:app from backend/."""
 from pathlib import Path
+from contextlib import asynccontextmanager
 import os
 import secrets
 from typing import Literal
@@ -9,10 +10,16 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, Field, StrictBool
 from .store import Store
+from .patrol import PatrolScheduler
 
 
 class ReplayRequest(BaseModel):
     mode: Literal['step', 'all'] = 'step'
+
+
+class AgentSettingsRequest(BaseModel):
+    enabled: StrictBool
+    interval_seconds: int = Field(ge=30, le=86400, strict=True)
 
 
 class DecisionRequest(BaseModel):
@@ -23,10 +30,19 @@ class DecisionRequest(BaseModel):
 
 
 def create_app(db_path=None):
-    app = FastAPI(title='AI vs AI — Autonomous Cyber Defense', version='1.0.0', description='Synthetic telemetry and isolated simulated response only.')
+    @asynccontextmanager
+    async def lifespan(app):
+        app.state.scheduler.start()
+        try:
+            yield
+        finally:
+            app.state.scheduler.stop()
+
+    app = FastAPI(lifespan=lifespan, title='AI vs AI — Autonomous Cyber Defense', version='1.0.0', description='Synthetic telemetry and isolated simulated response only.')
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=['localhost', '127.0.0.1', '[::1]', 'testserver'])
     app.state.store = Store(db_path or os.environ.get('SOC_DB_PATH', str(Path(__file__).resolve().parents[2] / 'soc.sqlite')))
     app.state.token = secrets.token_urlsafe(32)
+    app.state.scheduler = PatrolScheduler(app.state.store)
 
     def authorize(request: Request, x_soc_token: str | None = Header(default=None)):
         if not x_soc_token or not secrets.compare_digest(x_soc_token, app.state.token):
@@ -87,6 +103,31 @@ def create_app(db_path=None):
             store.set_meta(db, 'metrics', metrics)
             store.audit(db, 'analyst', 'evaluation_completed', f"Evaluated {metrics['samples']} held-out synthetic events.")
         return metrics
+
+    @app.get('/api/agent')
+    def agent():
+        return app.state.store.agent()
+
+    @app.post('/api/agent/settings', dependencies=[Depends(authorize)])
+    def agent_settings(body: AgentSettingsRequest):
+        result = app.state.store.configure_agent(body.enabled, body.interval_seconds)
+        app.state.scheduler.wake()
+        return result
+
+    @app.post('/api/agent/patrol', dependencies=[Depends(authorize)])
+    def agent_patrol():
+        try:
+            result = app.state.store.patrol('manual')
+            app.state.scheduler.wake()
+            return result
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc))
+
+    @app.get('/api/analytics')
+    def analytics(window_minutes: int = 60):
+        if window_minutes not in (15, 60, 1440):
+            raise HTTPException(422, 'window_minutes must be 15, 60 or 1440.')
+        return app.state.store.analytics(window_minutes)
 
     dist = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
     if dist.is_dir():
