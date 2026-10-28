@@ -35,6 +35,7 @@ For editing with hot reload, run `./scripts/dev.sh` and open **http://127.0.0.1:
 - **Patrols:** a backend scheduler reclassifies existing simulated telemetry, updates event predictions, correlates campaigns, and investigates incidents. It may create pending recommendations, but never approves or executes containment. Manual runs, scheduled runs, durations, failures, and coverage are recorded in SQLite.
 - **Analytics:** source, category, and host totals reconcile to loaded telemetry. Time windows (15 minutes, 1 hour, 24 hours) anchor to the latest event timestamp, not the current clock. Authentication failures include denied MFA prompts and failed/denied logins.
 - **Response:** only approved actions change isolated SQLite host/session state. Approval, execution, verification, and audit recording are coordinated by the backend. There is no shell execution, scanning, real identity-provider access, or network containment.
+- **Telemetry explorer:** filter by source, campaign severity, and text; pause the displayed event snapshot; download the filtered records as JSON or CSV. CSV cells escape delimiters and leading spreadsheet formula characters. Pausing the display does not stop backend patrols.
 - **Interface:** React, TypeScript, Tailwind CSS, Vite, and Lucide icons; FastAPI serves the API and built frontend. Polling keeps the event feed current.
 
 ## Background patrol scheduling
