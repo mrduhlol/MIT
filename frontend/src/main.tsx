@@ -25,6 +25,8 @@ import {
   Loader2,
 } from "lucide-react";
 import "./styles.css";
+import AgentOverview from "./AgentOverview";
+import { downloadLogs } from "./logExport";
 
 type Evidence = { feature: string; category: string; explanation: string };
 type Event = {
@@ -123,10 +125,12 @@ function SourceIcon({ source }: { source: string }) {
 }
 function App() {
   const [data, setData] = useState<Dashboard | null>(null),
-    [page, setPage] = useState("Operations"),
+    [page, setPage] = useState("Agent overview"),
     [selected, setSelected] = useState(""),
     [search, setSearch] = useState(""),
     [filter, setFilter] = useState("all"),
+    [severityFilter, setSeverityFilter] = useState("all"),
+    [frozenEvents, setFrozenEvents] = useState<Event[] | null>(null),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
@@ -227,14 +231,21 @@ function App() {
       .sort((a, b) => a.timestamp.localeCompare(b.timestamp)) || [];
   const pending = data?.actions.filter((a) => a.status === "pending") || [];
   const actions = data?.actions.filter((a) => a.incident_id === selected) || [];
+  const eventSeverity = (event: Event) =>
+    event.suspicious
+      ? data?.incidents.find((i) => i.event_ids.includes(event.id))?.severity ||
+        "medium"
+      : "normal";
   const filteredEvents =
-    data?.events.filter(
+    (frozenEvents ?? data?.events)?.filter(
       (e) =>
         (filter === "all" ||
           (filter === "suspicious" ? e.suspicious : e.source === filter)) &&
+        (severityFilter === "all" || eventSeverity(e) === severityFilter) &&
         JSON.stringify(e).toLowerCase().includes(search.toLowerCase()),
     ) || [];
   const nav = [
+    { name: "Agent overview", icon: Shield },
     { name: "Operations", icon: Layers },
     { name: "Event stream", icon: Activity },
     { name: "Evaluation", icon: BarChart3 },
@@ -249,7 +260,7 @@ function App() {
           aria-label="AI vs AI home"
           onClick={(e) => {
             e.preventDefault();
-            setPage("Operations");
+            setPage("Agent overview");
           }}
         >
           <div className="brand-mark">
@@ -323,22 +334,26 @@ function App() {
             <div>
               <div className="eyebrow">AUTONOMOUS CYBER DEFENSE CHALLENGE</div>
               <h1>
-                {page === "Operations"
-                  ? "Defense overview"
-                  : page === "Event stream"
-                    ? "Live event stream"
-                    : page === "Evaluation"
-                      ? "Detection performance"
-                      : "Response accountability"}
+                {page === "Agent overview"
+                  ? "Agent command center"
+                  : page === "Operations"
+                    ? "Incident investigation"
+                    : page === "Event stream"
+                      ? "Live event stream"
+                      : page === "Evaluation"
+                        ? "Detection performance"
+                        : "Response accountability"}
               </h1>
               <p>
-                {page === "Operations"
-                  ? "Connect the evidence. Understand the attack. Stay in control."
-                  : page === "Event stream"
-                    ? "Synthetic email, authentication, and network telemetry in one place."
-                    : page === "Evaluation"
-                      ? "Measured results from a labeled synthetic holdout dataset."
-                      : "Every recommendation, decision, and simulated state change is traceable."}
+                {page === "Agent overview"
+                  ? "Monitor the signals. Schedule safe patrols. Investigate what matters."
+                  : page === "Operations"
+                    ? "Connect the evidence. Understand the attack. Stay in control."
+                    : page === "Event stream"
+                      ? "Synthetic email, authentication, and network telemetry in one place."
+                      : page === "Evaluation"
+                        ? "Measured results from a labeled synthetic holdout dataset."
+                        : "Every recommendation, decision, and simulated state change is traceable."}
               </p>
             </div>
             <div className="heading-actions">
@@ -473,6 +488,13 @@ function App() {
                   Polling every 3 seconds · no external systems connected
                 </small>
               </div>
+              {page === "Agent overview" && (
+                <AgentOverview
+                  request={request}
+                  onChange={refresh}
+                  review={() => setPage("Operations")}
+                />
+              )}
               {page === "Operations" && (
                 <>
                   <div className="operations-grid">
@@ -784,6 +806,51 @@ function App() {
                         <option value="auth">Authentication</option>
                         <option value="network">Network</option>
                       </select>
+                      <select
+                        aria-label="Filter severity"
+                        value={severityFilter}
+                        onChange={(e) => setSeverityFilter(e.target.value)}
+                      >
+                        <option value="all">All severities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="normal">Normal</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="log-toolbar">
+                    <span>
+                      <span
+                        className={`online-dot ${frozenEvents ? "paused-dot" : ""}`}
+                      />
+                      {frozenEvents
+                        ? "Display paused · snapshot retained"
+                        : "Live display · refreshes every 3 seconds"}
+                    </span>
+                    <div>
+                      <button
+                        className="button subtle"
+                        onClick={() =>
+                          setFrozenEvents(
+                            frozenEvents ? null : [...data.events],
+                          )
+                        }
+                      >
+                        {frozenEvents ? "Resume live feed" : "Pause live feed"}
+                      </button>
+                      <button
+                        className="button subtle"
+                        onClick={() => downloadLogs(filteredEvents, "json")}
+                      >
+                        Download JSON
+                      </button>
+                      <button
+                        className="button subtle"
+                        onClick={() => downloadLogs(filteredEvents, "csv")}
+                      >
+                        Download CSV
+                      </button>
                     </div>
                   </div>
                   <EventTable events={[...filteredEvents].reverse()} expanded />
