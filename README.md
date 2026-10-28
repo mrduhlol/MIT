@@ -1,5 +1,7 @@
 # AI vs AI — Autonomous Cyber Defense Challenge
 
+**ATLAS** is the dashboard's AI defense agent for patrols, investigation, and approval-gated simulated responses.
+
 A local SOC and website-defense management prototype for synthetic security exercises and authorized Linux server telemetry. An agent overview brings together background patrols, event-volume analytics, source coverage, campaign investigation, and individually approved sandbox responses. Registered Linux collectors can now report actual local resource metrics and explicitly authorized log feeds over verified HTTPS. They do not crawl websites, execute remote commands, or report website availability.
 
 ## Quick start

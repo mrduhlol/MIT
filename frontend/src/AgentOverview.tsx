@@ -25,6 +25,7 @@ type Run = {
   error?: string;
 };
 type Agent = {
+  name: string;
   mode: string;
   site: { name: string; environment: string; collector_status: string };
   status: string;
@@ -204,9 +205,9 @@ export default function AgentOverview({ request, review, onChange }: Props) {
             <div className="eyebrow">
               DEFENSE AGENT <span className="safe-pill">APPROVAL-GATED</span>
             </div>
-            <h2>{agent.site.name}</h2>
+            <h2>{agent.name || "ATLAS"}</h2>
             <p>
-              {agent.site.environment} · Fixtures, enrolled agents, and
+              {agent.site.name} · {agent.site.environment} · Fixtures, enrolled agents, and
               authorized website API telemetry
             </p>
           </div>
@@ -536,7 +537,7 @@ export default function AgentOverview({ request, review, onChange }: Props) {
         <div className="panel-heading">
           <div>
             <h2>
-              Agent activity <span className="count">{agent.runs.length}</span>
+              ATLAS activity <span className="count">{agent.runs.length}</span>
             </h2>
             <p>Persistent patrol history · latest first</p>
           </div>

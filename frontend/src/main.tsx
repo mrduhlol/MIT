@@ -331,7 +331,7 @@ function App() {
               <div className="eyebrow">AUTONOMOUS CYBER DEFENSE CHALLENGE</div>
               <h1>
                 {page === "Agent overview"
-                  ? "Agent command center"
+                  ? "ATLAS command center"
                   : page === "Servers"
                     ? "Connected data sources"
                     : page === "Operations"

@@ -305,7 +305,7 @@ class Store:
                 connected = connected or bool(reporting)
                 modes.update(row['mode'] for row in reporting)
             mode = 'mixed' if len(modes) > 1 else 'real' if modes == {'real'} else 'simulation'
-            return {'mode': mode, 'site': {'name': 'Registered servers' if connected else 'Demo website', 'environment': 'Telemetry monitoring; containment stays simulated', 'collector_status': 'connected' if connected else 'simulated'},
+            return {'name': 'ATLAS', 'mode': mode, 'site': {'name': 'Registered servers' if connected else 'Demo website', 'environment': 'Telemetry monitoring; containment stays simulated', 'collector_status': 'connected' if connected else 'simulated'},
                 'status': 'running' if self.patrol_lock.locked() else 'scheduled' if settings['enabled'] else 'paused',
                 'enabled': settings['enabled'], 'interval_seconds': settings['interval_seconds'],
                 'last_run_at': runs[0]['completed_at'] if runs else None, 'next_run_at': settings['next_run_at'],
