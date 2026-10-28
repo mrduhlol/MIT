@@ -23,9 +23,11 @@ import {
   AlertTriangle,
   Server,
   Loader2,
+  Plus,
 } from "lucide-react";
 import "./styles.css";
 import AgentOverview from "./AgentOverview";
+import Servers from "./Servers";
 import { downloadLogs } from "./logExport";
 
 type Evidence = { feature: string; category: string; explanation: string };
@@ -126,6 +128,7 @@ function SourceIcon({ source }: { source: string }) {
 function App() {
   const [data, setData] = useState<Dashboard | null>(null),
     [page, setPage] = useState("Agent overview"),
+    [addServerRequest, setAddServerRequest] = useState(0),
     [selected, setSelected] = useState(""),
     [search, setSearch] = useState(""),
     [filter, setFilter] = useState("all"),
@@ -152,7 +155,7 @@ function App() {
     const res = await fetch("/api" + path, {
       headers: {
         "Content-Type": "application/json",
-        ...(body !== undefined ? { "X-SOC-Token": token.current } : {}),
+        ...(token.current ? { "X-SOC-Token": token.current } : {}),
       },
       ...(body !== undefined
         ? { method: "POST", body: JSON.stringify(body) }
@@ -246,6 +249,7 @@ function App() {
     ) || [];
   const nav = [
     { name: "Agent overview", icon: Shield },
+    { name: "Servers", icon: Server },
     { name: "Operations", icon: Layers },
     { name: "Event stream", icon: Activity },
     { name: "Evaluation", icon: BarChart3 },
@@ -286,6 +290,7 @@ function App() {
               key={n.name}
               className={page === n.name ? "nav-item active" : "nav-item"}
               onClick={() => {
+                if (n.name === "Servers") setAddServerRequest(0);
                 setPage(n.name);
                 setSearch("");
               }}
@@ -303,7 +308,7 @@ function App() {
             <LockKeyhole size={16} /> Isolated by design
           </div>
           <p>
-            Synthetic telemetry only.
+            Fixtures and enrolled agents.
             <br />
             Every response needs your approval.
           </p>
@@ -324,7 +329,7 @@ function App() {
             <strong>{page}</strong>
           </div>
           <div className="environment">
-            <span className="online-dot" /> LOCAL SANDBOX
+            <span className="online-dot" /> LOCAL CONTROL PLANE
             <span className="divider" />
             UTC
           </div>
@@ -336,27 +341,42 @@ function App() {
               <h1>
                 {page === "Agent overview"
                   ? "Agent command center"
-                  : page === "Operations"
-                    ? "Incident investigation"
-                    : page === "Event stream"
-                      ? "Live event stream"
-                      : page === "Evaluation"
-                        ? "Detection performance"
-                        : "Response accountability"}
+                  : page === "Servers"
+                    ? "Connected servers"
+                    : page === "Operations"
+                      ? "Incident investigation"
+                      : page === "Event stream"
+                        ? "Live event stream"
+                        : page === "Evaluation"
+                          ? "Detection performance"
+                          : "Response accountability"}
               </h1>
               <p>
                 {page === "Agent overview"
                   ? "Monitor the signals. Schedule safe patrols. Investigate what matters."
-                  : page === "Operations"
-                    ? "Connect the evidence. Understand the attack. Stay in control."
-                    : page === "Event stream"
-                      ? "Synthetic email, authentication, and network telemetry in one place."
-                      : page === "Evaluation"
-                        ? "Measured results from a labeled synthetic holdout dataset."
-                        : "Every recommendation, decision, and simulated state change is traceable."}
+                  : page === "Servers"
+                    ? "Enroll a host, monitor its health, and investigate its security signals."
+                    : page === "Operations"
+                      ? "Connect the evidence. Understand the attack. Stay in control."
+                      : page === "Event stream"
+                        ? "Email, authentication, and network events from fixtures and enrolled agents."
+                        : page === "Evaluation"
+                          ? "Measured results from a labeled synthetic holdout dataset."
+                          : "Every recommendation, decision, and simulated state change is traceable."}
               </p>
             </div>
             <div className="heading-actions">
+              <button
+                className="button primary"
+                disabled={!data}
+                onClick={() => {
+                  setPage("Servers");
+                  setAddServerRequest((v) => v + 1);
+                }}
+              >
+                <Plus size={15} />
+                Add Server
+              </button>
               <button
                 className="button subtle"
                 disabled={!!busy || !data}
@@ -468,7 +488,7 @@ function App() {
                 <div>
                   <span className="live-indicator" />
                   <strong>
-                    Simulation{" "}
+                    Fixture replay{" "}
                     {data.replay.cursor === data.replay.total
                       ? "loaded"
                       : "in progress"}
@@ -485,9 +505,20 @@ function App() {
                   />
                 </div>
                 <small>
-                  Polling every 3 seconds · no external systems connected
+                  Polling every 3 seconds · fixture replay and agent telemetry
+                  are distinct
                 </small>
               </div>
+              {page === "Servers" && (
+                <Servers
+                  request={request}
+                  addRequest={addServerRequest}
+                  reviewIncident={(id) => {
+                    setSelected(id);
+                    setPage("Operations");
+                  }}
+                />
+              )}
               {page === "Agent overview" && (
                 <AgentOverview
                   request={request}
@@ -1098,7 +1129,8 @@ function App() {
                   AI vs AI · Autonomous Cyber Defense Challenge
                 </span>
                 <span>
-                  Local ML · Synthetic data · Human-authorized response
+                  Local ML · Explicit data provenance · Human-authorized
+                  response
                 </span>
               </footer>
             </>
@@ -1220,9 +1252,9 @@ function App() {
       >
         <h2>Restart the simulation?</h2>
         <p>
-          This clears replayed events, incidents, proposed responses, and
-          sandbox state. You can then step through the attack from the first
-          event.
+          This clears fixture replay events and their simulated responses.
+          Enrolled-server telemetry, incidents, approvals, and patrol history
+          are preserved. You can replay the fixture attack from its first event.
         </p>
         <div className="dialog-actions">
           <button className="button subtle" onClick={() => setReset(false)}>

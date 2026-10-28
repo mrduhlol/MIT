@@ -236,3 +236,14 @@ def test_syslog_timestamp_uses_local_zone_and_rejects_old_records():
     assert abs((parsed-recent.astimezone(timezone.utc)).total_seconds()) < 1
     old = (observed-timedelta(days=3)).astimezone()
     assert agent.auth_timestamp(old.strftime('%b %d %H:%M:%S') + ' sshd: message', observed) is None
+
+
+def test_redacts_private_key_blocks_and_quoted_credentials():
+    text = '{"password": "hidden phrase", "token": "hidden-token"} Authorization: Basic abc123=='
+    result = agent.scrub_text(text)
+    for secret in ('hidden phrase', 'hidden-token', 'abc123'):
+        assert secret not in result
+    for key in ('-----BEGIN OPENSSH PRIVATE KEY-----\nprivate-key-material\n-----END OPENSSH PRIVATE KEY-----',
+                '-----BEGIN RSA PRIVATE KEY-----\ntruncated-private-material'):
+        assert 'private-key-material' not in agent.scrub_text(key)
+        assert 'truncated-private-material' not in agent.scrub_text(key)

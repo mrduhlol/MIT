@@ -212,7 +212,7 @@ def install_routes(app, authorize):
     def issue_enrollment(db, server_id):
         token = secrets.token_urlsafe(48)
         expires = (utcnow() + timedelta(minutes=10)).isoformat()
-        db.execute('UPDATE servers SET enrollment_hash=?,enrollment_expires_at=?,credential_hash=NULL,revoked=0,last_seen_at=NULL WHERE id=?',
+        db.execute('UPDATE servers SET enrollment_hash=?,enrollment_expires_at=?,credential_hash=NULL,revoked=0,last_seen_at=NULL,metrics=NULL WHERE id=?',
             (digest(token), expires, server_id))
         return token, expires
 

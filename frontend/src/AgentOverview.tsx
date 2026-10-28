@@ -202,12 +202,12 @@ export default function AgentOverview({ request, review, onChange }: Props) {
           </div>
           <div>
             <div className="eyebrow">
-              DEFENSE AGENT <span className="safe-pill">SIMULATION</span>
+              DEFENSE AGENT <span className="safe-pill">APPROVAL-GATED</span>
             </div>
             <h2>{agent.site.name}</h2>
             <p>
-              {agent.site.environment} · Synthetic collector · No live website
-              connected
+              {agent.site.environment} · Fixture replay and enrolled-agent
+              telemetry
             </p>
           </div>
           <span className={`agent-status ${agent.enabled ? "enabled" : ""}`}>
@@ -293,7 +293,7 @@ export default function AgentOverview({ request, review, onChange }: Props) {
         <div>
           <h2>Telemetry intelligence</h2>
           <p>
-            Window anchored to the latest synthetic event, not wall-clock time.
+            Window anchored to the latest telemetry event, not wall-clock time.
           </p>
         </div>
         <div className="agent-toolbar-actions">
@@ -331,7 +331,7 @@ export default function AgentOverview({ request, review, onChange }: Props) {
         <Kpi
           label="Outbound traffic"
           value={bytes(analytics.totals.bytes_out)}
-          note="Synthetic network bytes"
+          note="Reported network-event bytes"
           icon={<Globe size={17} />}
         />
         <Kpi
@@ -372,7 +372,7 @@ export default function AgentOverview({ request, review, onChange }: Props) {
           <div className="panel-heading">
             <div>
               <h2>Source distribution</h2>
-              <p>Coverage across connected synthetic sources</p>
+              <p>Coverage across collected event sources</p>
             </div>
           </div>
           <div className="source-bars">
@@ -479,8 +479,8 @@ export default function AgentOverview({ request, review, onChange }: Props) {
           </div>
           {!analytics.hosts.length && (
             <div className="chart-empty">
-              No hosts in this window. Replay synthetic events to populate
-              observations.
+              No hosts in this window. Replay fixtures or connect an enrolled
+              agent.
             </div>
           )}
         </section>
@@ -514,7 +514,7 @@ export default function AgentOverview({ request, review, onChange }: Props) {
       <section className="panel coverage-panel">
         <div className="panel-heading">
           <h2>Source coverage</h2>
-          <span className="safe-pill">SIMULATED COLLECTORS</span>
+          <span className="safe-pill">EVENT SOURCE COVERAGE</span>
         </div>
         <div className="coverage-grid">
           {agent.coverage.map((source) => (
@@ -588,8 +588,8 @@ export default function AgentOverview({ request, review, onChange }: Props) {
         )}
       </section>
       <p className="analytics-scope">
-        {analytics.scope} Website availability, CPU, memory, and real traffic
-        are not monitored by this simulation.
+        {analytics.scope} Resource metrics for enrolled hosts are available in
+        Servers. A registered website URL does not imply an availability check.
       </p>
     </div>
   );

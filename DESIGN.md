@@ -17,3 +17,12 @@ The default overview adds a read-only synthetic patrol control surface while pre
 - Scheduling uses an interval select plus explicit pause/resume. Run patrol triggers an investigation, never automatic containment. Errors and failures remain visible.
 - Log exploration adds severity filtering, a pauseable display snapshot, and JSON/CSV export of the filtered rows. CSV cells neutralize spreadsheet formula prefixes.
 - Responsive overview stacks the chart panels and source coverage on smaller screens while keeping controls and tabular data usable.
+
+## Connected server monitoring
+
+Servers extends the same operational shell with outbound agent enrollment and host monitoring. Each registered host carries a visible Simulated agent or Linux agent label. CPU, memory, load, and uptime remain unknown until a sample arrives; stale/offline readings are explicitly historical. A website URL is only a reference and never implies an availability check.
+
+- Add Server opens a native registration dialog. The returned enrollment token is held only in component state, displayed once, and cleared when instructions close. Commands use an interactive token prompt instead of embedding secrets.
+- Host resource charts use only submitted history and include keyboard-focusable sample points plus a data table.
+- Revoke and rotate require separate confirmations, explaining that they change ingestion credentials rather than running host commands or containment.
+- Related incidents open the existing evidence/approval flow. Aggregate pages label their mixed fixture/agent inputs; benchmark accuracy remains explicitly synthetic.

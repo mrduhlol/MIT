@@ -258,3 +258,35 @@ def test_ssh_failures_detected_without_false_mfa_claim(clients):
     assert event['telemetry_mode'] == 'real' and event['suspicious']
     assert any('failed authentication' in e['explanation'] for e in event['evidence'])
     assert all('MFA' not in e['explanation'] for e in event['evidence'])
+
+
+def test_approval_targets_only_its_registered_server(clients):
+    _, admin, agent = clients
+    first = enroll(agent, register(admin, name='Host A'))
+    second = enroll(agent, register(admin, name='Host B'))
+    for credential in (first, second):
+        assert send(agent, credential).status_code == 200
+    a = admin.get('/api/servers/' + first['server_id']).json()
+    response = admin.post('/api/incidents/' + a['incidents'][0]['id'] + '/investigate', json={}).json()
+    action = response['recommendations'][0]
+    assert action['target'].startswith(first['server_id'] + '::')
+    approved = admin.post('/api/actions/' + action['id'] + '/decision', json={'decision':'approve','confirmed':True,'actor':'Reviewer','reason':'Verified scoped target'})
+    assert approved.status_code == 200
+    state = admin.get('/api/dashboard').json()['sandbox']
+    assert state['isolated_hosts'] == [first['server_id'] + '::demo-linux']
+    assert not any(target.startswith(second['server_id']) for target in state['isolated_hosts'])
+    # Even approved containment remains a simulation; collectors receive no commands.
+    assert send(agent, first, payload(event_id='after-approved-simulation')).status_code == 200
+    assert send(agent, second, payload(event_id='after-other-server-approval')).status_code == 200
+
+
+def test_real_health_without_logs_is_not_labeled_as_unconnected_demo(clients):
+    _, admin, agent = clients
+    credential = enroll(agent, register(admin, mode='real'), mode='real')
+    body = payload()
+    body['events'] = []
+    assert send(agent, credential, body).status_code == 200
+    overview = admin.get('/api/agent').json()
+    assert overview['mode'] == 'mixed'  # Existing fixture plus real health report.
+    assert overview['site']['collector_status'] == 'connected'
+    assert overview['site']['name'] == 'Registered servers'

@@ -299,6 +299,11 @@ class Store:
                     'last_event_at': max((e['timestamp'] for e in rows), default=None)})
             modes = {e.get('telemetry_mode', 'simulated') for e in events}
             connected = any(e.get('server_id') for e in events)
+            # A host can report health without any opted-in security log source.
+            if self.conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='servers'").fetchone():
+                reporting = list(self.conn.execute('SELECT mode FROM servers WHERE revoked=0 AND last_seen_at IS NOT NULL'))
+                connected = connected or bool(reporting)
+                modes.update(row['mode'] for row in reporting)
             mode = 'mixed' if len(modes) > 1 else 'real' if modes == {'real'} else 'simulation'
             return {'mode': mode, 'site': {'name': 'Registered servers' if connected else 'Demo website', 'environment': 'Telemetry monitoring; containment stays simulated', 'collector_status': 'connected' if connected else 'simulated'},
                 'status': 'running' if self.patrol_lock.locked() else 'scheduled' if settings['enabled'] else 'paused',

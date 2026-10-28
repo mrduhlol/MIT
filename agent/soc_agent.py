@@ -206,9 +206,13 @@ def read_tail(path, cursor=None):
 
 
 def scrub_text(value):
-    text = str(value)[:1000]
-    text = re.sub(r'(?i)\b(?:bearer\s+)[A-Za-z0-9._~+/=-]+', 'Bearer [REDACTED]', text)
-    return re.sub(r'(?i)\b(password|passwd|token|api[_-]?key|secret)\s*[:=]\s*[^\s,;]+', r'\1=[REDACTED]', text)
+    text = str(value)
+    # Remove key blocks before truncation, including truncated private-key blocks.
+    text = re.sub(r'-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:[A-Z ]+ )?PRIVATE KEY-----|$)', '[PRIVATE KEY REDACTED]', text)
+    text = text[:1000]
+    text = re.sub(r'(?i)\b(?:bearer\s+|basic\s+)[A-Za-z0-9._~+/=-]+', '[AUTHORIZATION REDACTED]', text)
+    pattern = r"(?i)\b(password|passwd|token|api[_-]?key|secret)[\"']?\s*[:=]\s*(?:\"[^\"]*\"|'[^']*'|[^\s,;]+)"
+    return re.sub(pattern, r'\1=[REDACTED]', text)
 
 
 def sanitize_event(value):
