@@ -5,7 +5,7 @@ if [[ ! -x backend/.venv/bin/python || ! -d frontend/node_modules ]]; then
   echo 'Install dependencies first; see README.md.' >&2
   exit 1
 fi
-backend/.venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload &
+backend/.venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --no-proxy-headers --reload &
 backend_pid=$!
 npm --prefix frontend run dev -- --port 5173 &
 frontend_pid=$!

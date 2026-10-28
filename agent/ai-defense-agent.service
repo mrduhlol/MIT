@@ -1,0 +1,23 @@
+# Example USER unit: copy to ~/.config/systemd/user/ only after enrollment.
+# Edit absolute script/state paths below for your installation. Never put tokens here.
+[Unit]
+Description=AI Defense outbound telemetry collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/MIT/agent/soc_agent.py run --state-dir %h/.local/state/ai-defense --interval 30
+Restart=on-failure
+RestartSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/state/ai-defense
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+
+[Install]
+WantedBy=default.target

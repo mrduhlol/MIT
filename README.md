@@ -1,6 +1,6 @@
 # AI vs AI — Autonomous Cyber Defense Challenge
 
-A local SOC and website-defense management prototype for **synthetic** email, authentication, and network telemetry. An agent overview brings together background patrols, event-volume analytics, source coverage, campaign investigation, and individually approved sandbox responses. It does not collect live website traffic or report real website uptime.
+A local SOC and website-defense management prototype for synthetic security exercises and authorized Linux server telemetry. An agent overview brings together background patrols, event-volume analytics, source coverage, campaign investigation, and individually approved sandbox responses. Registered Linux collectors can now report actual local resource metrics and explicitly authorized log feeds over verified HTTPS. They do not crawl websites, execute remote commands, or report website availability.
 
 ## Quick start
 
@@ -11,12 +11,18 @@ python3 -m venv backend/.venv
 backend/.venv/bin/python -m pip install -r backend/requirements.txt
 npm --prefix frontend install
 npm --prefix frontend run build
-backend/.venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+backend/.venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --no-proxy-headers
 ```
 
 Open **http://127.0.0.1:8000**. The first launch loads a synthetic attack replay so there is immediately something to investigate. SQLite persists local state between launches. API documentation is at `/docs`.
 
 For editing with hot reload, run `./scripts/dev.sh` and open **http://127.0.0.1:5173**. Vite forwards `/api` calls to the backend on port 8000. Stop with Ctrl+C. If your Python installation uses mise, activate a supported Python version or use its absolute executable path when creating the virtual environment.
+
+## Register a Linux server
+
+The **Add Server** flow creates a short-lived, one-use enrollment token. A lightweight outbound-only Python collector exchanges it over verified HTTPS for a per-server credential. Choose **simulated** fixtures or **real** local `/proc` metrics and optional authorized logs; every containment action remains simulated.
+
+Stop the HTTP development backend first, then run `./scripts/dev_https.sh` and open **https://localhost:8443**. This standalone HTTPS mode replaces the HTTP backend; never run both app processes against one database. Local CA/key files stay under ignored `.local-tls/` and are not installed globally. See [server enrollment and Linux agent setup](docs/server-enrollment.md) for CA trust, hidden-token enrollment, real collection, revocation, retries, and an optional least-privilege systemd user service.
 
 ## Demo walkthrough
 
@@ -44,11 +50,11 @@ The schedule is **paused by default**. Enabling it persists the interval and nex
 
 Intervals range from 30 seconds to 24 hours. Manual and scheduled runs cannot overlap. A completed or failed run schedules the next interval from its completion; missed intervals are not replayed as a backlog. A persisted overdue schedule can run once after backend restart. Pausing prevents future scheduled scans; an already running scan may finish. Closing the backend stops scheduling. Reset clears telemetry and sandbox response state but retains audit history, patrol history, and schedule settings; pause first if you want an entirely quiet demo.
 
-A patrol is analysis of stored synthetic telemetry, not a website crawler, attack, collector, health check, or real containment agent. "Coverage" counts represented synthetic sources, and process uptime describes this backend process only.
+A patrol analyzes stored telemetry from synthetic fixtures and registered collectors; it is not a website crawler, attack, health check, or real containment agent. "Coverage" counts represented synthetic sources, and process uptime describes this backend process only.
 
 ## Safety and limitations
 
-This is a **single-user localhost demo**, not a production SOC service. Keep it bound to `127.0.0.1`; it does not provide production authentication, roles, tamper-proof audit storage, or hardened multi-tenant isolation. A per-process token gates mutating API requests; that token is not a substitute for production authentication.
+This is a **single-user localhost demo**, not a production SOC service. Keep it bound to `127.0.0.1`; it does not provide production authentication, roles, tamper-proof audit storage, or hardened multi-tenant isolation. A per-process token gates administrator API reads and writes, and collector ingestion uses separately scoped server credentials. The local session bootstrap is not a substitute for production authentication; keep administrative access local.
 
 Synthetic addresses use documentation ranges and synthetic domains. Email content is untrusted data; prompt-injection strings never become executable instructions. Each response needs its own explicit human approval. The API is intended for a human-operated UI, not an autonomous approver.
 
@@ -90,6 +96,8 @@ Refresh the saved measured report with `backend/.venv/bin/python scripts/evaluat
 
 | Path | Purpose |
 | --- | --- |
+| `agent/soc_agent.py` | Outbound-only verified-HTTPS Linux metrics/log collector |
+| `scripts/dev_https.sh` | Standalone local TLS backend (replaces HTTP development server) |
 | `frontend/src/` | Dashboard, approval UX, styles, API client |
 | `backend/app/main.py` | API routes, request validation, orchestration |
 | `backend/app/store.py` | SQLite state, correlation, sandbox responses |
@@ -99,7 +107,7 @@ Refresh the saved measured report with `backend/.venv/bin/python scripts/evaluat
 | `data/*.json` | Committed training, evaluation, and replay fixtures |
 | `backend/tests/` | Safety and integration regression tests |
 
-Do not connect the local simulation to real systems. Integrating the official challenge sandbox should retain the backend approval gate, immutable action targets, idempotency, verification, and audit traceability.
+The optional collector may read authorized local metrics/logs, but response execution must remain isolated simulation. Integrating the official challenge sandbox should retain the backend approval gate, immutable action targets, idempotency, verification, and audit traceability.
 
 ### Browser regression tests
 
