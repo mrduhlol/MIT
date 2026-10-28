@@ -180,7 +180,7 @@ class Store:
                 related = [a for a in actions if a['incident_id'] == incident['id']]
                 approved = [a for a in related if a['status'] == 'approved']
                 if approved:
-                    incident['status'] = 'contained' if all(a['status'] == 'approved' for a in related) else 'partially contained'
+                    incident['status'] = ('simulated response complete' if all(a['status'] == 'approved' for a in related) else 'simulated response partial') if incident.get('server_id') else ('contained' if all(a['status'] == 'approved' for a in related) else 'partially contained')
                 elif any(a['status'] == 'pending' for a in related):
                     incident['status'] = 'awaiting approval'
             state = [dict(row) for row in db.execute('SELECT * FROM sandbox')]
@@ -406,7 +406,7 @@ class Store:
             host['last_seen'] = max(host['last_seen'], event['timestamp'])
         for host in hosts.values():
             host['identities'] = sorted(host['identities'])
-            host['status'] = 'isolated' if (f"{host['server_id']}::{host['host']}" if host.get('server_id') else host['host']) in isolated else 'attention' if host['suspicious'] else 'observed'
+            host['status'] = ('simulated isolation' if host.get('server_id') else 'isolated') if (f"{host['server_id']}::{host['host']}" if host.get('server_id') else host['host']) in isolated else 'attention' if host['suspicious'] else 'observed'
         return {'window_minutes': window_minutes, 'anchor_at': anchor.isoformat() if anchor else None,
             'start_at': start.isoformat() if start else None, 'bucket_seconds': bucket_seconds, 'series': series,
             'sources': list(sources.values()), 'categories': [{'category': key, 'count': value} for key, value in sorted(categories.items())],

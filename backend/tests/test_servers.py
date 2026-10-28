@@ -274,6 +274,10 @@ def test_approval_targets_only_its_registered_server(clients):
     assert approved.status_code == 200
     state = admin.get('/api/dashboard').json()['sandbox']
     assert state['isolated_hosts'] == [first['server_id'] + '::demo-linux']
+    detail = admin.get('/api/servers/' + first['server_id']).json()
+    assert detail['incidents'][0]['status'] == 'simulated response complete'
+    hosts = admin.get('/api/analytics?window_minutes=15').json()['hosts']
+    assert next(h for h in hosts if h.get('server_id') == first['server_id'])['status'] == 'simulated isolation'
     assert not any(target.startswith(second['server_id']) for target in state['isolated_hosts'])
     # Even approved containment remains a simulation; collectors receive no commands.
     assert send(agent, first, payload(event_id='after-approved-simulation')).status_code == 200
