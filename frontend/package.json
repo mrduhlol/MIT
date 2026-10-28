@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:modals": "playwright test -c playwright.modals.config.ts"
   },
   "dependencies": {
     "react": "^19.0.0",

@@ -1183,19 +1183,74 @@ footer span {
   gap: 6px;
   align-items: center;
 }
+/* showModal() puts the dialog and its backdrop in the browser top layer.
+   Explicit margins undo Tailwind's reset; fixed inset centers against the viewport,
+   independently of dashboard transforms, stacking contexts, and scroll containers. */
 .decision-dialog {
-  background: #152030;
-  border: 1px solid #3c5068;
-  color: #d9e5f1;
-  border-radius: 12px;
-  padding: 27px;
-  max-width: 480px;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  z-index: 1000;
   width: calc(100% - 32px);
-  box-shadow: 0 20px 90px #0008;
+  max-width: 520px;
+  height: fit-content;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #496077 #152030;
+  background: #152030;
+  border: 1px solid #34465c;
+  color: #d9e5f1;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 24px 64px #0006;
+  overflow-wrap: anywhere;
+}
+.decision-dialog:not([open]) {
+  display: none;
+}
+.decision-dialog[open] {
+  animation: dialog-enter 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .decision-dialog::backdrop {
-  background: #030910b8;
-  backdrop-filter: blur(3px);
+  /* Solid translucent dimming remains usable without backdrop-filter support. */
+  background: rgb(3 9 16 / 76%);
+  animation: backdrop-enter 200ms ease-out;
+}
+@supports (
+  (backdrop-filter: blur(5px)) or (-webkit-backdrop-filter: blur(5px))
+) {
+  .decision-dialog::backdrop {
+    background: rgb(3 9 16 / 64%);
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+  }
+}
+@keyframes dialog-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .decision-dialog[open],
+  .decision-dialog::backdrop {
+    animation: none;
+  }
 }
 .dialog-heading {
   display: flex;
@@ -1629,7 +1684,11 @@ footer span {
     margin: 0 20px 20px;
   }
   .decision-dialog {
-    padding: 22px;
+    width: calc(100% - 24px);
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 20px;
+    border-radius: 14px;
   }
   .decision-dialog h2 {
     font-size: 20px;
@@ -2569,8 +2628,6 @@ footer span {
 }
 .enrollment-dialog {
   max-width: 710px;
-  max-height: calc(100dvh - 40px);
-  overflow: auto;
 }
 .enrollment-token {
   display: flex;
@@ -2704,9 +2761,6 @@ footer span {
   }
   .server-incident strong {
     font-size: 10px;
-  }
-  .enrollment-dialog {
-    max-height: calc(100dvh - 24px);
   }
   .enrollment-token {
     flex-wrap: wrap;

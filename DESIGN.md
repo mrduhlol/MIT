@@ -26,3 +26,9 @@ Servers extends the same operational shell with outbound agent enrollment and ho
 - Host resource charts use only submitted history and include keyboard-focusable sample points plus a data table.
 - Revoke and rotate require separate confirmations, explaining that they change ingestion credentials rather than running host commands or containment.
 - Related incidents open the existing evidence/approval flow. Aggregate pages label their mixed fixture/agent inputs; benchmark accuracy remains explicitly synthetic.
+
+## Shared modal interaction
+
+All five dialogs use `Modal.tsx`: a native `showModal()` dialog portaled to `document.body`. Fixed viewport insets with explicit auto margins undo the Tailwind margin reset, while the browser top layer prevents dashboard clipping or stacking interference. Shared dynamic viewport height limits keep long content internally scrollable.
+
+The backdrop dims independently with 5px blur and a translucent fallback; dialog fade/scale and backdrop fade take 200ms and are disabled for reduced motion. Native inertness plus a keyboard wrap keep focus within the active dialog. A shared lifecycle locks background scrolling, restores scroll/style/focus, and supports dialog handoffs without losing the original trigger. Untouched registration and idle reset dialogs allow backdrop dismissal; filled registration, one-time enrollment, and response/credential confirmations require an explicit close or Escape.

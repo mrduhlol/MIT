@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Modal from "./Modal";
 import {
   Server,
   Plus,
@@ -107,9 +108,6 @@ export default function Servers({
   );
   const api = useRef(request);
   api.current = request;
-  const addDialog = useRef<HTMLDialogElement>(null),
-    enrollDialog = useRef<HTMLDialogElement>(null),
-    confirmDialog = useRef<HTMLDialogElement>(null);
   const lastAddRequest = useRef(0);
   function openAdd() {
     setName("");
@@ -123,18 +121,6 @@ export default function Servers({
     if (addRequest > 0 && addRequest !== lastAddRequest.current) openAdd();
     lastAddRequest.current = addRequest;
   }, [addRequest]);
-  useEffect(() => {
-    if (adding) addDialog.current?.showModal();
-    else addDialog.current?.close();
-  }, [adding]);
-  useEffect(() => {
-    if (enrollment) enrollDialog.current?.showModal();
-    else enrollDialog.current?.close();
-  }, [enrollment]);
-  useEffect(() => {
-    if (confirmation) confirmDialog.current?.showModal();
-    else confirmDialog.current?.close();
-  }, [confirmation]);
   async function load() {
     const result = await api.current("/servers");
     setServers(result.servers);
@@ -532,10 +518,15 @@ export default function Servers({
           )}
         </div>
       )}
-      <dialog
-        ref={addDialog}
-        className="decision-dialog server-dialog"
-        onCancel={() => setAdding(false)}
+      <Modal
+        open={adding}
+        onDismiss={() => setAdding(false)}
+        labelledBy="add-server-title"
+        className="server-dialog"
+        initialFocus="input"
+        dismissOnBackdrop={
+          !name && !hostname && !website && mode === "simulated" && !busy
+        }
       >
         <form
           onSubmit={(e) => {
@@ -567,7 +558,7 @@ export default function Servers({
             </button>
           </div>
           <div className="eyebrow">ENROLL A HOST</div>
-          <h2>Add Server</h2>
+          <h2 id="add-server-title">Add Server</h2>
           <p>
             Registration creates a one-time enrollment credential. The agent
             runs on your host and sends telemetry outbound.
@@ -643,11 +634,12 @@ export default function Servers({
             </button>
           </div>
         </form>
-      </dialog>
-      <dialog
-        ref={enrollDialog}
-        className="decision-dialog enrollment-dialog"
-        onCancel={() => setEnrollment(null)}
+      </Modal>
+      <Modal
+        open={!!enrollment}
+        onDismiss={() => setEnrollment(null)}
+        labelledBy="enrollment-title"
+        className="enrollment-dialog"
       >
         <div className="dialog-heading">
           <span className="dialog-icon">
@@ -661,7 +653,7 @@ export default function Servers({
           </button>
         </div>
         <div className="eyebrow">ONE-TIME ENROLLMENT</div>
-        <h2>Connect {enrollment?.server.name}</h2>
+        <h2 id="enrollment-title">Connect {enrollment?.server.name}</h2>
         <p>
           Copy this token now. It is shown only in this session and expires at{" "}
           {clock(enrollment?.expires_at || null)}. Closing this dialog clears it
@@ -736,13 +728,25 @@ export default function Servers({
             Close enrollment instructions
           </button>
         </div>
-      </dialog>
-      <dialog
-        ref={confirmDialog}
-        className="decision-dialog"
-        onCancel={() => setConfirmation(null)}
+      </Modal>
+      <Modal
+        open={!!confirmation}
+        onDismiss={() => setConfirmation(null)}
+        labelledBy="server-confirmation-title"
       >
-        <h2>
+        <div className="dialog-heading">
+          <span className="dialog-icon">
+            <KeyRound size={24} />
+          </span>
+          <button
+            type="button"
+            aria-label="Close server confirmation"
+            onClick={() => setConfirmation(null)}
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <h2 id="server-confirmation-title">
           {confirmation === "revoke"
             ? "Revoke this agent?"
             : "Rotate enrollment credentials?"}
@@ -792,7 +796,7 @@ export default function Servers({
               : "Rotate credentials"}
           </button>
         </div>
-      </dialog>
+      </Modal>
     </div>
   );
 }

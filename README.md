@@ -90,6 +90,8 @@ npm run test:e2e
 
 Override browser location with `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chromium` when needed. The suite includes approval, scheduler, analytics, and browser workflow regression tests. Desktop/mobile captures are written to ignored `artifacts/`.
 
+For modal interaction checks, first build the frontend and run `./scripts/dev_https.sh`, then run `npm --prefix frontend run test:modals`. This separate suite uses `https://localhost:8443` and checks viewport centering, focus restoration and trapping, backdrop dismissal, scroll locking, mobile resizing, reduced motion, and enrollment dialog handoffs. Enrollment mutations are mocked; it does not reset demo state.
+
 Refresh the saved measured report with `backend/.venv/bin/python scripts/evaluate.py`; results are in `docs/evaluation-results.json`. See `docs/architecture.md` for extension points and the official sandbox integration boundary.
 
 ## Edit points

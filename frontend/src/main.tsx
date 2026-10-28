@@ -28,6 +28,7 @@ import {
 import "./styles.css";
 import AgentOverview from "./AgentOverview";
 import Servers from "./Servers";
+import Modal from "./Modal";
 import { downloadLogs } from "./logExport";
 
 type Evidence = { feature: string; category: string; explanation: string };
@@ -149,8 +150,6 @@ function App() {
     [confirmed, setConfirmed] = useState(false),
     [reset, setReset] = useState(false);
   const token = useRef("");
-  const modalRef = useRef<HTMLDialogElement>(null);
-  const resetRef = useRef<HTMLDialogElement>(null);
   async function request(path: string, body?: unknown) {
     const res = await fetch("/api" + path, {
       headers: {
@@ -200,14 +199,6 @@ function App() {
     if (data && !data.incidents.some((i) => i.id === selected))
       setSelected(data.incidents[0]?.id || "");
   }, [data, selected]);
-  useEffect(() => {
-    if (modal) modalRef.current?.showModal();
-    else modalRef.current?.close();
-  }, [modal]);
-  useEffect(() => {
-    if (reset) resetRef.current?.showModal();
-    else resetRef.current?.close();
-  }, [reset]);
   async function run(key: string, work: () => Promise<void>) {
     setBusy(key);
     setError("");
@@ -1137,10 +1128,11 @@ function App() {
           )}
         </div>
       </main>
-      <dialog
-        ref={modalRef}
-        onCancel={() => setModal(null)}
-        className="decision-dialog"
+      <Modal
+        open={!!modal}
+        onDismiss={() => setModal(null)}
+        labelledBy="decision-title"
+        initialFocus="input"
       >
         <form
           onSubmit={(e) => {
@@ -1175,7 +1167,7 @@ function App() {
             </button>
           </div>
           <div className="eyebrow">HUMAN DECISION</div>
-          <h2>
+          <h2 id="decision-title">
             {modal?.decision === "approve"
               ? "Approve simulated response"
               : "Reject proposed response"}
@@ -1244,13 +1236,26 @@ function App() {
             </button>
           </div>
         </form>
-      </dialog>
-      <dialog
-        ref={resetRef}
-        onCancel={() => setReset(false)}
-        className="decision-dialog"
+      </Modal>
+      <Modal
+        open={reset}
+        onDismiss={() => setReset(false)}
+        labelledBy="reset-title"
+        dismissOnBackdrop={!busy}
       >
-        <h2>Restart the simulation?</h2>
+        <div className="dialog-heading">
+          <span className="dialog-icon">
+            <RotateCcw size={24} />
+          </span>
+          <button
+            type="button"
+            aria-label="Close reset confirmation"
+            onClick={() => setReset(false)}
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <h2 id="reset-title">Restart the simulation?</h2>
         <p>
           This clears fixture replay events and their simulated responses.
           Enrolled-server telemetry, incidents, approvals, and patrol history
@@ -1278,7 +1283,7 @@ function App() {
             Reset simulation
           </button>
         </div>
-      </dialog>
+      </Modal>
     </div>
   );
 }
