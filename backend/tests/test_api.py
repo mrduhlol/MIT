@@ -123,3 +123,19 @@ def test_string_confirmation_and_blank_analyst_are_rejected(client):
     assert client.post(f"/api/actions/{action['id']}/decision",json=payload).status_code == 422
     payload.update(confirmed=True,actor='   ')
     assert client.post(f"/api/actions/{action['id']}/decision",json=payload).status_code == 422
+
+def test_evaluation_does_not_mutate_active_simulation(client):
+    before = client.get('/api/dashboard').json()
+    assert client.post('/api/evaluate').status_code == 200
+    after = client.get('/api/dashboard').json()
+    for key in ('events','incidents','actions','sandbox','replay'):
+        assert after[key] == before[key]
+    assert all('label' not in e for e in after['events'])
+
+def test_reset_preserves_audit_history(client):
+    proposal(client)
+    before = client.get('/api/dashboard').json()['audit']
+    assert client.post('/api/reset').status_code == 200
+    after = client.get('/api/dashboard').json()['audit']
+    assert {a['id'] for a in before} <= {a['id'] for a in after}
+    assert any(a['action']=='simulation_reset' for a in after)

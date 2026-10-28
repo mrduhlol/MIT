@@ -6,14 +6,15 @@ from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from backend.app.detection import Detector
+from backend.app.store import Store
 
 
 def main():
     training = json.loads((ROOT / 'data/train.json').read_text())
     evaluation = json.loads((ROOT / 'data/evaluation.json').read_text())
-    detector = Detector(training)
-    report = detector.evaluate(evaluation)
+    store = Store(':memory:')
+    report = store.evaluate()
+    store.conn.close()
     report['measured_at'] = datetime.now(timezone.utc).isoformat()
     report['training_samples'] = len(training)
     report['limitations'] = [

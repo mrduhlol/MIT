@@ -65,7 +65,8 @@ def correlate(events):
 class Store:
     def __init__(self, path):
         self.path = str(path)
-        self.detector = Detector(json.loads((DATA / 'train.json').read_text()))
+        self.training = json.loads((DATA / 'train.json').read_text())
+        self.detector = Detector(self.training)
         self.fixtures = json.loads((DATA / 'replay.json').read_text())
         self.evaluation = json.loads((DATA / 'evaluation.json').read_text())
         if self.path != ':memory:':
@@ -130,7 +131,7 @@ class Store:
     def evaluate(self):
         result = self.detector.evaluate(self.evaluation)
         result['evaluated_at'] = now()
-        result['training_samples'] = 120
+        result['training_samples'] = len(self.training)
         # Dedicated in-memory DB: evaluation cannot mutate the active simulation.
         benchmark = sqlite3.connect(':memory:')
         benchmark.execute('CREATE TABLE events (id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
@@ -144,7 +145,7 @@ class Store:
         correlate(events)
         result['batch_latency_ms'] = (time.perf_counter_ns() - start) / 1_000_000
         result['batch_size'] = len(events)
-        result['batch_latency_scope'] = 'One 66-event batch: classification, in-memory SQLite persistence/commit/read and correlation; excludes HTTP, disk I/O and browser rendering.'
+        result['batch_latency_scope'] = f'One {len(events)}-event batch: classification, in-memory SQLite persistence/commit/read and correlation; excludes HTTP, disk I/O and browser rendering.'
         benchmark.close()
         return result
 

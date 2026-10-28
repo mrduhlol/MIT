@@ -7,3 +7,6 @@ dist/
 .env
 .impeccable/
 artifacts/
+test-results/
+playwright-report/
+*.tsbuildinfo
