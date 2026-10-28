@@ -18,9 +18,13 @@ Open **http://127.0.0.1:8000**. The first launch loads a synthetic attack replay
 
 For editing with hot reload, run `./scripts/dev.sh` and open **http://127.0.0.1:5173**. Vite forwards `/api` calls to the backend on port 8000. Stop with Ctrl+C. If your Python installation uses mise, activate a supported Python version or use its absolute executable path when creating the virtual environment.
 
-## Register a Linux server
+## Connect data sources
 
-The **Add Server** flow creates a short-lived, one-use enrollment token. A lightweight outbound-only Python collector exchanges it over verified HTTPS for a per-server credential. Choose **simulated** fixtures or **real** local `/proc` metrics and optional authorized logs; every containment action remains simulated.
+**Add Server** now opens **Connect Data Source**. Choose a **Website / Web Application** using an authenticated HTTPS security-events API, a **Linux Server** with one-use agent enrollment, or a separate **Simulated Demo Source**. Cloud and identity-provider connectors are clearly unavailable until their authorization flows are implemented. Multiple sources retain separate credentials, events, and incidents.
+
+Website connections are validated by the backend before saving, with actual granted categories and encrypted API-key storage. A URL alone does not establish connectivity. The outbound-only Linux collector sends real `/proc` metrics and explicitly authorized logs; a simulated collector sends only synthetic fixtures. Every containment action remains simulated and requires individual human approval.
+
+See [Connect Data Source setup and API contract](docs/data-sources.md) for the working local HTTPS website fixture, exact test steps, credential handling, source management, and current limits.
 
 Stop the HTTP development backend first, then run `./scripts/dev_https.sh` and open **https://localhost:8443**. This standalone HTTPS mode replaces the HTTP backend; never run both app processes against one database. Local CA/key files stay under ignored `.local-tls/` and are not installed globally. See [server enrollment and Linux agent setup](docs/server-enrollment.md) for CA trust, hidden-token enrollment, real collection, revocation, retries, and an optional least-privilege systemd user service.
 
@@ -90,6 +94,8 @@ npm run test:e2e
 
 Override browser location with `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chromium` when needed. The suite includes approval, scheduler, analytics, and browser workflow regression tests. Desktop/mobile captures are written to ignored `artifacts/`.
 
+For the complete source and dashboard browser suite with an isolated test database and real local HTTPS fixture, run `cd frontend && npx playwright test -c playwright.integration.config.ts` after building and running `./scripts/setup_tls.sh`. It includes website connection management and actual Linux collector enrollment. Ports 8445 and 9445 must be free.
+
 For modal interaction checks, first build the frontend and run `./scripts/dev_https.sh`, then run `npm --prefix frontend run test:modals`. This separate suite uses `https://localhost:8443` and checks viewport centering, focus restoration and trapping, backdrop dismissal, scroll locking, mobile resizing, reduced motion, and enrollment dialog handoffs. Enrollment mutations are mocked; it does not reset demo state.
 
 Refresh the saved measured report with `backend/.venv/bin/python scripts/evaluate.py`; results are in `docs/evaluation-results.json`. See `docs/architecture.md` for extension points and the official sandbox integration boundary.
@@ -102,6 +108,8 @@ Refresh the saved measured report with `backend/.venv/bin/python scripts/evaluat
 | `scripts/dev_https.sh` | Standalone local TLS backend (replaces HTTP development server) |
 | `frontend/src/` | Dashboard, approval UX, styles, API client |
 | `backend/app/main.py` | API routes, request validation, orchestration |
+| `backend/app/sources.py`, `backend/app/connectors.py` | Source registry, encrypted credentials, validated website connector |
+| `scripts/demo_website.py` | Authenticated local HTTPS fixture, explicitly simulated |
 | `backend/app/store.py` | SQLite state, correlation, sandbox responses |
 | `backend/app/patrol.py` | Single-process background patrol scheduling |
 | `backend/app/detection.py` | Model features, training, explanations, metrics |

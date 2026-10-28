@@ -2791,3 +2791,329 @@ footer span {
     flex: 1 0 auto;
   }
 }
+
+/* Source-specific authorization and telemetry setup. */
+.connect-source-dialog {
+  max-width: 760px;
+}
+.connect-source-dialog.source-setup-dialog {
+  max-width: 620px;
+}
+.integration-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 24px;
+}
+.integration-option {
+  display: flex;
+  align-items: flex-start;
+  text-align: left;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #34465c;
+  border-radius: 12px;
+  background: #101b29;
+  color: #dce5ef;
+  transition:
+    border-color 150ms,
+    background 150ms;
+}
+.integration-option:hover {
+  background: #192b38;
+  border-color: #63d2bb;
+}
+.integration-option.demo-option {
+  grid-column: 1 / -1;
+}
+.integration-icon {
+  color: #83dfcc;
+  padding-top: 2px;
+  flex: 0 0 auto;
+}
+.integration-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.integration-copy strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+.integration-copy > span:not(.integration-method) {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #aebfd1;
+}
+.integration-copy small {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #9aafc5;
+}
+.integration-method {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 600;
+  color: #90e1ce;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #203e3c;
+}
+.integration-method.unavailable {
+  color: #b7c4d4;
+  background: #293545;
+}
+.integration-arrow {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: #91a8bf;
+}
+.source-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 11px !important;
+  color: #a9bccc !important;
+}
+.source-security-note svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+.dialog-heading .source-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 5px 0;
+  color: #b4c7d8;
+  width: auto;
+  height: auto;
+}
+.source-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.source-categories {
+  border: 1px solid #34465c;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin: 22px 0 0;
+  min-width: 0;
+}
+.source-categories legend {
+  color: #d0ddeb;
+  font-size: 12px;
+  padding: 0 5px;
+}
+.source-categories .checkbox-label {
+  padding: 4px 0;
+  background: transparent;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  margin: 10px 0;
+  color: #c4d2e1;
+}
+.source-categories .checkbox-label input {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  accent-color: #63d2bb;
+}
+.source-auth-method {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #101b29;
+  padding: 14px;
+  margin-top: 20px;
+  border-radius: 8px;
+  color: #a8c5d4;
+}
+.source-auth-method span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.source-auth-method strong {
+  font-size: 12px;
+  color: #d0ddeb;
+}
+.source-auth-method small {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.source-validation {
+  border: 1px solid #366557;
+  background: #152f2c;
+  padding: 16px;
+  margin-top: 20px;
+  border-radius: 10px;
+}
+.source-validation h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #94e0cb;
+  margin: 0 0 8px;
+}
+.source-validation p {
+  font-size: 12px;
+  color: #bdd4ce;
+  margin: 0;
+}
+.source-validation dl {
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 12px 0 0;
+}
+.source-validation dt {
+  color: #9ebfb6;
+  margin-top: 8px;
+}
+.source-validation dd {
+  color: #d3e6e0;
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+.unsupported-source {
+  margin-top: 22px;
+}
+.unsupported-source h3 {
+  margin-top: 24px;
+  font-size: 14px;
+}
+.unsupported-source .button {
+  margin-top: 14px;
+}
+.server-status.connected {
+  color: #7be0be;
+  background: #183e32;
+}
+.server-status.error {
+  color: #ffb1b1;
+  background: #482b32;
+}
+.server-status.disconnected {
+  color: #b9c5d5;
+  background: #2c3543;
+}
+.source-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #28384b;
+}
+.source-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.source-facts span {
+  font-size: 11px;
+  color: #9db1c8;
+}
+.source-facts strong {
+  font-size: 12px;
+  color: #d5e1ed;
+  font-variant-numeric: tabular-nums;
+}
+.source-facts small {
+  color: #9db1c8;
+  font-weight: normal;
+}
+.source-permissions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 32px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #28384b;
+}
+.source-permissions > div {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.source-permissions h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: #9db1c8;
+  font-weight: 500;
+}
+.source-permissions p {
+  margin: 0;
+  font-size: 12px;
+  color: #c7d7e6;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.category-tags span {
+  font-size: 10px;
+  padding: 4px 7px;
+  background: #233345;
+  border-radius: 4px;
+  color: #bfcede;
+}
+.source-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 20px 24px;
+}
+.source-notice {
+  margin: 0 24px 20px;
+  font-size: 12px;
+  color: #91d6c0;
+  line-height: 1.7;
+}
+.website-detail .banner {
+  margin: 16px 24px;
+}
+.source-endpoint {
+  overflow-wrap: anywhere;
+}
+.website-detail .server-connection > span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .integration-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .integration-option {
+    padding: 14px;
+  }
+  .integration-option.demo-option {
+    grid-column: auto;
+  }
+  .source-facts {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+  .source-permissions,
+  .source-actions {
+    padding: 16px;
+    gap: 12px;
+  }
+  .connect-source-dialog .dialog-actions {
+    flex-wrap: wrap;
+  }
+  .connect-source-dialog .dialog-actions .button {
+    flex: 1 1 auto;
+  }
+}

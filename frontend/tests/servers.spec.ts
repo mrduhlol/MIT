@@ -25,16 +25,11 @@ test("Add Server to verified HTTPS collector, incident review, and revoke", asyn
   try {
     await page.goto("/");
     await page.getByRole("button", { name: "Add Server", exact: true }).click();
+    await page.getByRole("button", { name: "Simulated Demo Source", exact: true }).click();
     await page
       .getByLabel("Server name", { exact: true })
       .fill("Browser demo Linux");
     await page.getByLabel(/^Hostname/).fill(hostname);
-    await page
-      .getByLabel("Website URL (optional)", { exact: true })
-      .fill("https://example.test");
-    await page
-      .getByLabel("Agent mode", { exact: true })
-      .selectOption("simulated");
     const created = page.waitForResponse(
       (r) =>
         r.url().endsWith("/api/servers") && r.request().method() === "POST",
@@ -57,7 +52,7 @@ test("Add Server to verified HTTPS collector, incident review, and revoke", asyn
         "../agent/soc_agent.py",
         "enroll",
         "--url",
-        "https://localhost:8443",
+        process.env.SOC_TEST_BASE_URL || "https://localhost:8443",
         "--ca-cert",
         resolve("../.local-tls/ca.crt"),
         "--state-dir",
@@ -189,7 +184,7 @@ test("Add Server to verified HTTPS collector, incident review, and revoke", asyn
       .click();
     await page.getByRole("button", { name: "Servers", exact: true }).click();
     await expect(
-      page.getByRole("heading", { name: "Add Server", exact: true }),
+      page.getByRole("heading", { name: "Connect Data Source", exact: true }),
     ).not.toBeVisible();
     expect(errors).toEqual([]);
   } finally {

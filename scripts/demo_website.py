@@ -34,7 +34,7 @@ def private_key(path):
         if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600:
             raise ValueError('API key file must be owned by this user with mode 0600.')
         value = handle.read(257).strip()
-    if not 32 <= len(value) <= 256 or not value.isascii() or any(c.isspace() for c in value):
+    if not 32 <= len(value) <= 256 or not value.isascii() or not value.isprintable() or any(c.isspace() for c in value):
         raise ValueError('API key must contain 32–256 printable ASCII characters without whitespace.')
     return value
 

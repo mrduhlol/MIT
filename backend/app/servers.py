@@ -315,7 +315,8 @@ def install_routes(app, authorize):
                 if not inserted:
                     continue
                 event = item.model_dump(exclude_none=True)
-                event.update(id=event_id, host=row['hostname'], server_id=server_id, telemetry_mode=row['mode'])
+                event.update(id=event_id, host=row['hostname'], server_id=server_id, source_id=server_id, data_source_id=server_id,
+                             source_type='simulated' if row['mode'] == 'simulated' else 'linux', telemetry_mode=row['mode'], received_at=received)
                 event.update(store.detector.predict(event))
                 accepted += db.execute('INSERT OR IGNORE INTO events(id,payload,server_id) VALUES (?,?,?)', (event_id, json.dumps(event), server_id)).rowcount
             metrics = json.dumps(body.metrics.model_dump())

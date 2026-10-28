@@ -19,7 +19,9 @@ async function centered(page: Page, dialog = visibleDialog(page)) {
 async function openAdd(page: Page) {
   await opener(page).click();
   await centered(page);
-  await expect(visibleDialog(page).getByRole("heading", { name: "Add Server", exact: true })).toBeVisible();
+  await expect(visibleDialog(page).getByRole("heading", { name: "Connect Data Source", exact: true })).toBeVisible();
+  await visibleDialog(page).getByRole("button", { name: "Simulated Demo Source", exact: true }).click();
+  await centered(page);
 }
 
 async function mockServerApi(page: Page) {
@@ -29,6 +31,12 @@ async function mockServerApi(page: Page) {
     incident_ids: [], created_at: "2026-10-28T08:00:00+00:00",
   };
   let registered = false;
+  const source = { ...server, type: "simulated", available_categories: ["health_metrics", "authentication"], granted_permissions: [], enabled_categories: ["health_metrics", "authentication"], last_success_at: null, last_event_at: null, last_heartbeat_at: null, error: null };
+  await page.route("**/api/sources**", async route => {
+    if (route.request().method() !== "GET") return route.abort();
+    const path = new URL(route.request().url()).pathname;
+    await route.fulfill({ json: path === "/api/sources" ? { sources: registered ? [source] : [] } : { source, events: [], incidents: [] } });
+  });
   const enrollment = () => ({ server, enrollment_token: "TEST_FIXTURE_NOT_A_VALID_ENROLLMENT_CREDENTIAL", expires_at: "2099-01-01T00:00:00+00:00" });
   await page.route("**/api/servers**", async route => {
     const url = new URL(route.request().url());
@@ -80,7 +88,7 @@ test("native dialog traps focus and Escape or close restores its opener across r
   for (let iteration = 0; iteration < 3; iteration += 1) {
     await openAdd(page);
     const dialog = visibleDialog(page);
-    const first = dialog.getByRole("button", { name: "Close Add Server", exact: true });
+    const first = dialog.getByRole("button", { name: "All integrations", exact: true });
     const last = dialog.getByRole("button", { name: "Create server", exact: true });
     await first.focus();
     await page.keyboard.press("Shift+Tab");
@@ -90,7 +98,7 @@ test("native dialog traps focus and Escape or close restores its opener across r
     // Native showModal makes the rest of the document inert to focus.
     await opener(page).evaluate(element => element.focus());
     await expect(first).toBeFocused();
-    if (iteration === 1) await first.click();
+    if (iteration === 1) await dialog.getByRole("button", { name: "Close Connect Data Source", exact: true }).click();
     else await page.keyboard.press("Escape");
     await expect(visibleDialog(page)).toHaveCount(0);
     await expect(opener(page)).toBeFocused();
@@ -151,6 +159,9 @@ for (const viewport of [{ width: 390, height: 600 }, { width: 740, height: 360 }
   test(`dialog fits ${viewport.width}x${viewport.height} with reachable internally scrolling actions`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await openAdd(page);
+    await visibleDialog(page).getByRole("button", { name: "All integrations", exact: true }).click();
+    await visibleDialog(page).getByRole("button", { name: "Website / Web Application", exact: true }).click();
+    await centered(page);
     const dialog = visibleDialog(page);
     const geometry = await dialog.evaluate(element => {
       const rect = element.getBoundingClientRect();
@@ -163,7 +174,7 @@ for (const viewport of [{ width: 390, height: 600 }, { width: 740, height: 360 }
     expect(geometry.bottom).toBeLessThanOrEqual(viewport.height - 7);
     expect(geometry.scrollHeight).toBeGreaterThan(geometry.clientHeight);
     if (viewport.width === 390) await page.screenshot({ path: new URL("../../artifacts/modal-mobile.png", import.meta.url).pathname, fullPage: false });
-    const submit = dialog.getByRole("button", { name: "Create server", exact: true });
+    const submit = dialog.getByRole("button", { name: "Save integration", exact: true });
     await submit.scrollIntoViewIfNeeded();
     await expect(submit).toBeInViewport({ ratio: 1 });
     expect(await dialog.evaluate(element => element.scrollTop)).toBeGreaterThan(0);

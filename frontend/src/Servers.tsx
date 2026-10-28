@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
+import ConnectSource, { type Source, categoryLabel } from "./ConnectSource";
+import WebsiteSource from "./WebsiteSource";
 import {
   Server,
   Plus,
@@ -15,6 +17,8 @@ import {
   ArrowUpRight,
   KeyRound,
   Link2,
+  Globe,
+  FlaskConical,
 } from "lucide-react";
 
 type Metrics = {
@@ -91,16 +95,14 @@ export default function Servers({
   reviewIncident,
 }: Props) {
   const [servers, setServers] = useState<RegisteredServer[]>([]);
+  const [sources, setSources] = useState<Source[]>([]);
   const [selected, setSelected] = useState("");
   const [detail, setDetail] = useState<ServerDetail | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState("");
   const [adding, setAdding] = useState(false);
-  const [name, setName] = useState("");
-  const [hostname, setHostname] = useState("");
-  const [website, setWebsite] = useState("");
-  const [mode, setMode] = useState<"simulated" | "real">("simulated");
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmation, setConfirmation] = useState<"revoke" | "rotate" | null>(
@@ -110,10 +112,6 @@ export default function Servers({
   api.current = request;
   const lastAddRequest = useRef(0);
   function openAdd() {
-    setName("");
-    setHostname("");
-    setWebsite("");
-    setMode("simulated");
     setError("");
     setAdding(true);
   }
@@ -122,21 +120,36 @@ export default function Servers({
     lastAddRequest.current = addRequest;
   }, [addRequest]);
   async function load() {
-    const result = await api.current("/servers");
+    const [result, catalog] = await Promise.all([
+      api.current("/servers"),
+      api.current("/sources"),
+    ]);
     setServers(result.servers);
+    setSources(catalog.sources);
     setLoaded(true);
-    if (selected) setDetail(await api.current(`/servers/${selected}`));
+    if (
+      selected &&
+      result.servers.some((item: RegisteredServer) => item.id === selected)
+    )
+      setDetail(await api.current(`/servers/${selected}`));
   }
   useEffect(() => {
     let active = true;
     async function refresh() {
       try {
-        const result = await api.current("/servers");
+        const [result, catalog] = await Promise.all([
+          api.current("/servers"),
+          api.current("/sources"),
+        ]);
         if (active) {
           setServers(result.servers);
+          setSources(catalog.sources);
           setLoaded(true);
         }
-        if (selected) {
+        if (
+          selected &&
+          result.servers.some((item: RegisteredServer) => item.id === selected)
+        ) {
           const next = await api.current(`/servers/${selected}`);
           if (active) setDetail(next);
         }
@@ -152,12 +165,12 @@ export default function Servers({
     };
   }, [selected]);
   useEffect(() => {
-    if (servers.length && !servers.some((s) => s.id === selected))
-      setSelected(servers[0].id);
-  }, [servers, selected]);
+    if (sources.length && !selected) setSelected(sources[0].id);
+  }, [sources, selected]);
   async function perform(key: string, work: () => Promise<void>) {
     setBusy(key);
     setError("");
+    setNotice("");
     try {
       await work();
       await load();
@@ -172,6 +185,7 @@ export default function Servers({
       ? detail.server
       : servers.find((s) => s.id === selected);
   const visibleDetail = detail?.server.id === selected ? detail : null;
+  const selectedSource = sources.find((source) => source.id === selected);
   const connectionUrl =
     window.location.protocol === "https:"
       ? window.location.origin
@@ -202,48 +216,49 @@ export default function Servers({
         <div>
           <div className="section-label">
             <Link2 size={15} />
-            SERVER ENROLLMENT
+            DATA SOURCE CONNECTIONS
           </div>
-          <h2>Monitor your hosts with an enrolled agent</h2>
+          <h2>Connect your infrastructure to the SOC</h2>
           <p>
-            Register a host, enroll its outbound-only agent, and review
-            heartbeat metrics and security signals. Simulated agents are clearly
-            labeled; real Linux agents report only the telemetry you enable.
+            Connect an authorized website API, enroll a Linux agent, or run a
+            clearly labeled synthetic demo. Each source keeps its own
+            credentials, permissions, telemetry, and incident history.
           </p>
         </div>
         <button className="button primary" onClick={openAdd}>
           <Plus size={15} />
-          Register server
+          Connect Data Source
         </button>
       </section>
       <div className="server-summary">
         <span>
           <span className="online-dot" />
-          {servers.filter((s) => s.status === "online").length} online
+          {sources.filter((s) => s.status === "connected").length} connected
         </span>
         <span>
-          {servers.filter((s) => s.status === "pending").length} awaiting
-          enrollment
+          {sources.filter((s) => s.status === "pending").length} awaiting
+          connection
         </span>
         <span>
-          {servers.filter((s) => s.status === "offline").length} offline
+          {sources.filter((s) => s.status === "offline").length} offline
         </span>
-        <span>{servers.length} registered</span>
+        <span>{sources.length} sources</span>
         <small>No SSH, remote commands, or automatic containment.</small>
       </div>
       {!loaded ? (
-        <div className="panel chart-empty">Loading registered servers…</div>
-      ) : !servers.length ? (
+        <div className="panel chart-empty">Loading data sources…</div>
+      ) : !sources.length ? (
         <section className="panel server-empty">
           <Server size={36} />
-          <h2>No servers registered yet</h2>
+          <h2>No data sources connected yet</h2>
           <p>
-            Add a server to receive its enrollment token. Metrics remain empty
-            until an enrolled agent sends its first heartbeat.
+            Choose an integration and authorize the telemetry you want to
+            collect. Data appears only after a verified API fetch or agent
+            heartbeat.
           </p>
           <button className="button primary" onClick={openAdd}>
             <Plus size={15} />
-            Add your first server
+            Connect your first source
           </button>
         </section>
       ) : (
@@ -251,11 +266,10 @@ export default function Servers({
           <section className="panel server-list">
             <div className="panel-heading">
               <h2>
-                Registered servers{" "}
-                <span className="count">{servers.length}</span>
+                Data sources <span className="count">{sources.length}</span>
               </h2>
             </div>
-            {servers.map((s) => (
+            {sources.map((s) => (
               <button
                 key={s.id}
                 className={`server-list-item ${selected === s.id ? "selected" : ""}`}
@@ -266,29 +280,50 @@ export default function Servers({
               >
                 <div>
                   <span className="server-list-icon">
-                    <Server size={18} />
+                    {s.type === "website" ? (
+                      <Globe size={18} />
+                    ) : s.type === "simulated" ? (
+                      <FlaskConical size={18} />
+                    ) : (
+                      <Server size={18} />
+                    )}
                   </span>
                   <span>
                     <strong>{s.name}</strong>
-                    <small>{s.hostname}</small>
+                    <small>{s.hostname || s.base_url}</small>
                   </span>
                   <span className={`server-status ${s.status}`}>
                     {s.status}
                   </span>
                 </div>
                 <p>
-                  {s.mode === "simulated" ? "Simulated agent" : "Linux agent"}
+                  {s.type === "website"
+                    ? `Website API${s.mode === "simulated" ? " · Simulated" : ""}`
+                    : s.mode === "simulated"
+                      ? "Simulated agent"
+                      : "Linux agent"}
                   <span>{s.threat_count} signals</span>
                 </p>
                 <small>
-                  {s.last_seen_at
-                    ? `Last seen ${clock(s.last_seen_at)}`
-                    : "Waiting for first heartbeat"}
+                  {s.last_success_at
+                    ? `Last connected ${clock(s.last_success_at)}`
+                    : s.type === "website"
+                      ? "Not yet verified"
+                      : "Waiting for first heartbeat"}
                 </small>
               </button>
             ))}
           </section>
-          {server && (
+          {selectedSource?.type === "website" && (
+            <WebsiteSource
+              key={selectedSource.id}
+              source={selectedSource}
+              request={request}
+              refresh={load}
+              reviewIncident={reviewIncident}
+            />
+          )}
+          {server && selectedSource?.type !== "website" && (
             <div className="server-detail">
               <section className="panel">
                 <div className="panel-heading">
@@ -309,6 +344,22 @@ export default function Servers({
                     </p>
                   </div>
                   <div className="server-admin-actions">
+                    <button
+                      className="button subtle"
+                      disabled={!!busy || server.status === "revoked"}
+                      onClick={() =>
+                        perform("test", async () => {
+                          const result = await api.current(
+                            `/sources/${server.id}/test`,
+                            {},
+                          );
+                          setNotice(result.verification);
+                        })
+                      }
+                    >
+                      <RefreshCw size={13} />
+                      Test Connection
+                    </button>
                     <button
                       className="button subtle"
                       disabled={!!busy}
@@ -352,9 +403,45 @@ export default function Servers({
                       : server.status === "revoked"
                         ? "Credentials revoked. New telemetry is no longer accepted."
                         : ""}{" "}
-                    A registered website URL is a reference, not an availability
-                    check.
+                    Agent telemetry does not imply website availability.
                   </p>
+                </div>
+                {notice && (
+                  <p role="status" className="source-notice">
+                    {notice}
+                  </p>
+                )}
+                <div className="source-permissions">
+                  <div>
+                    <h3>Granted permissions</h3>
+                    <p>
+                      {selectedSource?.granted_permissions.join(", ") ||
+                        "Awaiting enrollment"}
+                    </p>
+                  </div>
+                  <div>
+                    <h3>Supported telemetry categories</h3>
+                    <p>
+                      {selectedSource?.enabled_categories
+                        .map(categoryLabel)
+                        .join(", ") || "No categories configured"}
+                    </p>
+                    <p>
+                      Security log permissions and paths are configured locally
+                      on the agent. Supported categories do not prove log access
+                      is granted.
+                    </p>
+                  </div>
+                  <div>
+                    <h3>Last event received</h3>
+                    <p>
+                      {selectedSource?.last_event_received_at
+                        ? clock(selectedSource.last_event_received_at)
+                        : selectedSource?.event_count
+                          ? "Receipt time unavailable for older events"
+                          : "No events received"}
+                    </p>
+                  </div>
                 </div>
                 <div className="server-metrics">
                   <HostMetric
@@ -518,123 +605,21 @@ export default function Servers({
           )}
         </div>
       )}
-      <Modal
+      <ConnectSource
         open={adding}
-        onDismiss={() => setAdding(false)}
-        labelledBy="add-server-title"
-        className="server-dialog"
-        initialFocus="input"
-        dismissOnBackdrop={
-          !name && !hostname && !website && mode === "simulated" && !busy
-        }
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void perform("add", async () => {
-              const result = await api.current("/servers", {
-                name: name.trim(),
-                hostname: hostname.trim(),
-                website_url: website.trim() || null,
-                mode,
-              });
-              setAdding(false);
-              setEnrollment(result);
-              setSelected(result.server.id);
-              setCopied(false);
-            });
-          }}
-        >
-          <div className="dialog-heading">
-            <span className="dialog-icon">
-              <Server size={24} />
-            </span>
-            <button
-              type="button"
-              aria-label="Close Add Server"
-              onClick={() => setAdding(false)}
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <div className="eyebrow">ENROLL A HOST</div>
-          <h2 id="add-server-title">Add Server</h2>
-          <p>
-            Registration creates a one-time enrollment credential. The agent
-            runs on your host and sends telemetry outbound.
-          </p>
-          <label>
-            Server name
-            <input
-              required
-              maxLength={80}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Production web server"
-              autoFocus
-            />
-          </label>
-          <label>
-            Hostname
-            <input
-              required
-              maxLength={253}
-              pattern="[A-Za-z0-9][A-Za-z0-9._-]*"
-              value={hostname}
-              onChange={(e) => setHostname(e.target.value)}
-              placeholder="web-01"
-            />
-            <small>Use the same hostname when enrolling the agent.</small>
-          </label>
-          <label>
-            Website URL (optional)
-            <input
-              type="url"
-              maxLength={2048}
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="https://example.com"
-            />
-          </label>
-          <label>
-            Agent mode
-            <select
-              aria-label="Agent mode"
-              value={mode}
-              onChange={(e) => setMode(e.target.value as "simulated" | "real")}
-            >
-              <option value="simulated">
-                Simulated — synthetic metrics and events
-              </option>
-              <option value="real">
-                Real Linux — host metrics and opt-in logs
-              </option>
-            </select>
-          </label>
-          <p className="mode-explanation">
-            {mode === "simulated"
-              ? "Useful for a safe end-to-end demo. No host metrics or system logs are read."
-              : "Reads Linux host metrics. Security log collection requires explicit paths configured when running the agent."}
-          </p>
-          {error && (
-            <div role="alert" className="banner error">
-              {error}
-            </div>
-          )}
-          <div className="dialog-actions">
-            <button
-              type="button"
-              className="button subtle"
-              onClick={() => setAdding(false)}
-            >
-              Cancel
-            </button>
-            <button className="button primary" type="submit" disabled={!!busy}>
-              {busy === "add" ? "Registering…" : "Create server"}
-            </button>
-          </div>
-        </form>
-      </Modal>
+        onClose={() => setAdding(false)}
+        request={request}
+        onEnrollment={(result) => {
+          setEnrollment(result);
+          setSelected(result.server.id);
+          setCopied(false);
+          void load();
+        }}
+        onConnected={(id) => {
+          setSelected(id);
+          void load();
+        }}
+      />
       <Modal
         open={!!enrollment}
         onDismiss={() => setEnrollment(null)}
@@ -689,6 +674,15 @@ export default function Servers({
             </button>
           </div>
         </label>
+        <div className="source-validation" role="status">
+          <h3>Agent verification</h3>
+          <p>
+            {servers.find((item) => item.id === enrollment?.server.id)
+              ?.last_seen_at
+              ? `Authenticated heartbeat received: ${clock(servers.find((item) => item.id === enrollment?.server.id)?.last_seen_at || null)}`
+              : "Pending — no authenticated heartbeat received yet. Installing the agent alone does not establish a connection."}
+          </p>
+        </div>
         <div className="enrollment-steps">
           <h3>1. Start the trusted HTTPS endpoint</h3>
           <p>

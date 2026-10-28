@@ -299,7 +299,7 @@ function App() {
             <LockKeyhole size={16} /> Isolated by design
           </div>
           <p>
-            Fixtures and enrolled agents.
+            Fixtures and authorized data sources.
             <br />
             Every response needs your approval.
           </p>
@@ -333,7 +333,7 @@ function App() {
                 {page === "Agent overview"
                   ? "Agent command center"
                   : page === "Servers"
-                    ? "Connected servers"
+                    ? "Connected data sources"
                     : page === "Operations"
                       ? "Incident investigation"
                       : page === "Event stream"
@@ -346,11 +346,11 @@ function App() {
                 {page === "Agent overview"
                   ? "Monitor the signals. Schedule safe patrols. Investigate what matters."
                   : page === "Servers"
-                    ? "Enroll a host, monitor its health, and investigate its security signals."
+                    ? "Connect website APIs and Linux agents, manage permissions, and investigate their security signals."
                     : page === "Operations"
                       ? "Connect the evidence. Understand the attack. Stay in control."
                       : page === "Event stream"
-                        ? "Email, authentication, and network events from fixtures and enrolled agents."
+                        ? "Email, authentication, and network events from fixtures, enrolled agents, and authorized website APIs."
                         : page === "Evaluation"
                           ? "Measured results from a labeled synthetic holdout dataset."
                           : "Every recommendation, decision, and simulated state change is traceable."}
@@ -496,8 +496,7 @@ function App() {
                   />
                 </div>
                 <small>
-                  Polling every 3 seconds · fixture replay and agent telemetry
-                  are distinct
+                  Refreshing every 3 seconds · API event collection is manual
                 </small>
               </div>
               {page === "Servers" && (

@@ -146,6 +146,8 @@ def create_app(db_path=None):
         return app.state.store.analytics(window_minutes)
 
     install_routes(app, authorize)
+    from .sources import install_routes as install_source_routes
+    install_source_routes(app, authorize)
 
     dist = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
     if dist.is_dir():

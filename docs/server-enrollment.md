@@ -20,10 +20,10 @@ For browser access, trust this specific development CA in a dedicated developmen
 
 ## 2. Register a server in the local dashboard
 
-Select **Add Server**, enter a name and hostname, optionally add a website URL, and choose:
+Select **Add Server → Connect Data Source**, then choose the dedicated source type and enter a name and hostname:
 
-- **Simulated:** fixed synthetic metrics and safe example email/auth/network events. No `/proc` or log-file collection occurs.
-- **Real:** actual local `/proc` CPU/memory/load/uptime readings, plus optional authorized telemetry files. No logs are collected unless paths are supplied explicitly.
+- **Simulated Demo Source:** fixed synthetic metrics and safe example email/auth/network events. No `/proc` or log-file collection occurs.
+- **Linux Server:** actual local `/proc` CPU/memory/load/uptime readings, plus optional authorized telemetry files. No logs are collected unless paths are supplied explicitly.
 
 Use **Create server**. Copy the displayed one-use enrollment token; it expires after 10 minutes. The hostname and mode in the agent command must match the registered values. Tokens are shown once; rotation invalidates the previous enrollment token and any existing ingest credential.
 

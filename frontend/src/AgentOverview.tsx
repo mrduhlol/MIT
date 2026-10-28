@@ -206,8 +206,8 @@ export default function AgentOverview({ request, review, onChange }: Props) {
             </div>
             <h2>{agent.site.name}</h2>
             <p>
-              {agent.site.environment} · Fixture replay and enrolled-agent
-              telemetry
+              {agent.site.environment} · Fixtures, enrolled agents, and
+              authorized website API telemetry
             </p>
           </div>
           <span className={`agent-status ${agent.enabled ? "enabled" : ""}`}>
@@ -479,8 +479,8 @@ export default function AgentOverview({ request, review, onChange }: Props) {
           </div>
           {!analytics.hosts.length && (
             <div className="chart-empty">
-              No hosts in this window. Replay fixtures or connect an enrolled
-              agent.
+              No hosts in this window. Replay fixtures or collect events from a
+              connected source.
             </div>
           )}
         </section>
@@ -589,7 +589,7 @@ export default function AgentOverview({ request, review, onChange }: Props) {
       </section>
       <p className="analytics-scope">
         {analytics.scope} Resource metrics for enrolled hosts are available in
-        Servers. A registered website URL does not imply an availability check.
+        Servers. API connectivity does not measure website availability.
       </p>
     </div>
   );

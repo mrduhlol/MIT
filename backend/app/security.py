@@ -77,6 +77,10 @@ class APISecurity:
             if not token or len(token) > 256 or not secrets.compare_digest(token.encode('latin-1'), self.state.token.encode()):
                 return await reject(403, 'A valid local SOC admin session token is required.')
 
+        if path.startswith('/api/sources') and scope['method'] in ('POST', 'PUT', 'PATCH'):
+            if not self.limits.allow('source-write:global', 60):
+                return await reject(429, 'Source connection rate limit exceeded; retry in a minute.')
+
         if path == '/api/agent/enroll':
             host = (scope.get('client') or ('unknown', 0))[0]
             if not self.limits.allow('enroll:' + host, 20) or not self.limits.allow('enroll:global', 200):
