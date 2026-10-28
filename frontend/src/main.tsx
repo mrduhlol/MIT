@@ -239,12 +239,12 @@ function App() {
         JSON.stringify(e).toLowerCase().includes(search.toLowerCase()),
     ) || [];
   const nav = [
-    { name: "Agent overview", icon: Shield },
-    { name: "Servers", icon: Server },
-    { name: "Operations", icon: Layers },
-    { name: "Event stream", icon: Activity },
-    { name: "Evaluation", icon: BarChart3 },
-    { name: "Audit & sandbox", icon: ScrollText },
+    { name: "Agent overview", label: "Overview", icon: Shield },
+    { name: "Servers", label: "Data sources", icon: Server },
+    { name: "Operations", label: "Incidents", icon: Layers },
+    { name: "Event stream", label: "Logs", icon: Activity },
+    { name: "Evaluation", label: "Model results", icon: BarChart3 },
+    { name: "Audit & sandbox", label: "Action history", icon: ScrollText },
   ];
   return (
     <div className="app-shell">
@@ -262,23 +262,16 @@ function App() {
             <Shield size={25} />
           </div>
           <div>
-            AI <span>vs</span> AI<small>DEFENSE OPERATIONS</small>
+            AI <span>vs</span> AI
           </div>
         </a>
-        <div className="workspace">
-          <span className="workspace-icon">
-            <Server size={17} />
-          </span>
-          <div>
-            Challenge workspace<small>Local environment</small>
-          </div>
-          <ChevronRight size={14} />
-        </div>
-        <div className="nav-label">WORKSPACE</div>
         <nav>
           {nav.map((n) => (
             <button
               key={n.name}
+              aria-label={n.label}
+              title={n.label}
+              aria-current={page === n.name ? "page" : undefined}
               className={page === n.name ? "nav-item active" : "nav-item"}
               onClick={() => {
                 if (n.name === "Servers") setAddServerRequest(0);
@@ -287,7 +280,7 @@ function App() {
               }}
             >
               <n.icon size={19} />
-              <span>{n.name}</span>
+              <span>{n.label}</span>
               {n.name === "Operations" && data && (
                 <b>{data.incidents.length}</b>
               )}
@@ -317,10 +310,10 @@ function App() {
           <div>
             <span className="breadcrumb">Workspace</span>
             <ChevronRight size={13} />
-            <strong>{page}</strong>
+            <strong>{nav.find((n) => n.name === page)?.label}</strong>
           </div>
           <div className="environment">
-            <span className="online-dot" /> LOCAL CONTROL PLANE
+            <span className="online-dot" /> ATLAS
             <span className="divider" />
             UTC
           </div>
@@ -328,10 +321,9 @@ function App() {
         <div className="main-content">
           <section className="page-heading">
             <div>
-              <div className="eyebrow">AUTONOMOUS CYBER DEFENSE CHALLENGE</div>
               <h1>
                 {page === "Agent overview"
-                  ? "ATLAS command center"
+                  ? "Security overview"
                   : page === "Servers"
                     ? "Connected data sources"
                     : page === "Operations"
@@ -344,7 +336,7 @@ function App() {
               </h1>
               <p>
                 {page === "Agent overview"
-                  ? "Monitor the signals. Schedule safe patrols. Investigate what matters."
+                  ? "Check activity, run a patrol, and review incidents."
                   : page === "Servers"
                     ? "Connect website APIs and Linux agents, manage permissions, and investigate their security signals."
                     : page === "Operations"
@@ -366,8 +358,11 @@ function App() {
                 }}
               >
                 <Plus size={15} />
-                Add Server
+                Connect source
               </button>
+              <details className="demo-tools">
+                <summary className="button subtle">Demo controls</summary>
+                <div className="demo-tools-menu">
               <button
                 className="button subtle"
                 disabled={!!busy || !data}
@@ -408,6 +403,8 @@ function App() {
                 <Play size={15} />
                 Run replay
               </button>
+                </div>
+              </details>
             </div>
           </section>
           {error && (
@@ -443,7 +440,7 @@ function App() {
             </div>
           ) : (
             <>
-              <div className="metric-strip">
+              {page !== "Servers" && <div className="metric-strip">
                 <Metric
                   label="Active campaigns"
                   value={String(
@@ -474,7 +471,9 @@ function App() {
                   note={`${data.metrics.samples} synthetic holdout events`}
                   tone="teal"
                 />
-              </div>
+              </div>}
+              <details className="replay-details">
+                <summary>Demo data status</summary>
               <div className="replay-bar">
                 <div>
                   <span className="live-indicator" />
@@ -499,6 +498,7 @@ function App() {
                   Refreshing every 3 seconds · API event collection is manual
                 </small>
               </div>
+              </details>
               {page === "Servers" && (
                 <Servers
                   request={request}

@@ -202,9 +202,6 @@ export default function AgentOverview({ request, review, onChange }: Props) {
             <ShieldCheck size={27} />
           </div>
           <div>
-            <div className="eyebrow">
-              DEFENSE AGENT <span className="safe-pill">APPROVAL-GATED</span>
-            </div>
             <h2>{agent.name || "ATLAS"}</h2>
             <p>
               {agent.site.name} · {agent.site.environment} · Fixtures, enrolled agents, and
@@ -217,6 +214,9 @@ export default function AgentOverview({ request, review, onChange }: Props) {
           </span>
         </div>
         <div className="patrol-controls">
+          <button className="button subtle" onClick={review}>Review incidents <ArrowUpRight size={15} /></button>
+          <details className="schedule-details">
+            <summary className="button subtle">Patrol schedule</summary>
           <label>
             Patrol frequency
             <select
@@ -247,6 +247,7 @@ export default function AgentOverview({ request, review, onChange }: Props) {
             {agent.enabled ? <Pause size={15} /> : <Play size={15} />}{" "}
             {agent.enabled ? "Pause patrol" : "Resume patrol"}
           </button>
+          </details>
           <button
             className="button primary"
             disabled={!!busy}
@@ -286,13 +287,15 @@ export default function AgentOverview({ request, review, onChange }: Props) {
           </span>
           <span>
             <ShieldCheck size={13} />
-            Read-only investigation · approval-gated response
+            Responses require your approval
           </span>
         </div>
       </section>
+      <details className="overview-details">
+        <summary>Activity charts and details</summary>
       <div className="agent-toolbar">
         <div>
-          <h2>Telemetry intelligence</h2>
+          <h2>Recent activity</h2>
           <p>
             Window anchored to the latest telemetry event, not wall-clock time.
           </p>
@@ -310,9 +313,7 @@ export default function AgentOverview({ request, review, onChange }: Props) {
               <option value={1440}>Last 24 hours</option>
             </select>
           </label>
-          <button className="text-button" onClick={review}>
-            Review incidents <ArrowUpRight size={15} />
-          </button>
+
         </div>
       </div>
       <div className="agent-kpis">
@@ -588,6 +589,7 @@ export default function AgentOverview({ request, review, onChange }: Props) {
           </div>
         )}
       </section>
+      </details>
       <p className="analytics-scope">
         {analytics.scope} Resource metrics for enrolled hosts are available in
         Servers. API connectivity does not measure website availability.

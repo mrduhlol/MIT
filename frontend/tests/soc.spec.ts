@@ -117,6 +117,8 @@ test("agent patrol, analytics and schedule controls work without approving respo
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Event activity", exact: true })).not.toBeVisible();
+  await page.getByText("Activity charts and details", { exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Event activity", exact: true }),
   ).toBeVisible();
@@ -158,6 +160,7 @@ test("agent patrol, analytics and schedule controls work without approving respo
     .getByLabel("Analytics time window", { exact: true })
     .selectOption("60");
   expect((await (await analyticsResponse).json()).window_minutes).toBe(60);
+  await page.getByText("Patrol schedule", { exact: true }).click();
   await page
     .getByLabel("Patrol frequency", { exact: true })
     .selectOption("900");
@@ -224,7 +227,7 @@ test("telemetry filters, paused display and JSON export match the selected recor
   );
   expect(expected.length).toBeGreaterThan(0);
   await page.goto("/");
-  await page.getByRole("button", { name: "Event stream", exact: true }).click();
+  await page.getByRole("button", { name: "Logs", exact: true }).click();
   await page.getByLabel("Filter events", { exact: true }).selectOption("email");
   await page
     .getByLabel("Filter severity", { exact: true })

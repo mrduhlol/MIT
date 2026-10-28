@@ -3117,3 +3117,43 @@ footer span {
     flex: 1 1 auto;
   }
 }
+
+/* Keep everyday work visible; disclose setup and diagnostics on demand. */
+.sidebar nav { margin-top: 36px; }
+.sidebar-foot .analyst { display: none; }
+.sidebar-foot p { margin-bottom: 0; }
+.main-content { max-width: 1440px; }
+.metric-strip { background: transparent; border-width: 0 0 1px; border-radius: 0; margin-bottom: 20px; }
+.metric { padding: 12px 20px 20px; border-right: 0; }
+.metric:first-child { padding-left: 0; }
+.metric-value { font-size: 26px; }
+.metric-label { font-size: 12px; }
+.metric small { font-size: 11px; color: #9cacc1; }
+.demo-tools { position: relative; }
+.demo-tools summary { list-style: none; cursor: pointer; }
+.demo-tools summary::-webkit-details-marker { display: none; }
+.demo-tools-menu { position: absolute; top: calc(100% + 8px); right: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; z-index: 20; min-width: 170px; }
+.replay-details { margin: 0 0 24px; color: #a5b5c9; font-size: 12px; }
+.replay-details summary, .overview-details > summary { cursor: pointer; padding: 10px 0; }
+.replay-bar { padding-bottom: 8px; flex-wrap: wrap; }
+.overview-details { border-top: 1px solid var(--line); padding-top: 8px; }
+.overview-details > summary { font-size: 14px; font-weight: 600; color: #c6d3e3; }
+.overview-details[open] > summary { margin-bottom: 20px; }
+.schedule-details > summary { cursor: pointer; }
+.schedule-details[open] { display: flex; flex-direction: column; gap: 12px; }
+.schedule-details label { margin: 12px 0; }
+.patrol-panel { background: var(--panel); }
+.patrol-identity p { max-width: 55ch; font-size: 12px; color: #a5b5c9; }
+.patrol-facts { flex-wrap: wrap; }
+.analytics-scope { font-size: 11px; color: #9cacc1; }
+::selection { background: #27574e; color: #f0fff9; }
+input, textarea { caret-color: var(--teal); }
+@media (max-width: 760px) {
+  .sidebar nav { margin-top: 0; }
+  .heading-actions { flex-wrap: wrap; }
+  .page-heading { align-items: flex-start; }
+  .metric { padding: 12px; }
+  .metric:first-child { padding-left: 12px; }
+  .patrol-controls { flex-wrap: wrap; }
+  .demo-tools-menu { right: 0; }
+}
