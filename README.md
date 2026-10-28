@@ -1,6 +1,6 @@
 # AI vs AI — Autonomous Cyber Defense Challenge
 
-A local, working SOC prototype for investigating **synthetic** email, authentication, and network telemetry. It combines an explainable trained classifier with cross-source campaign correlation, evidence-backed investigation, and individually approved sandbox responses.
+A local SOC and website-defense management prototype for **synthetic** email, authentication, and network telemetry. An agent overview brings together background patrols, event-volume analytics, source coverage, campaign investigation, and individually approved sandbox responses. It does not collect live website traffic or report real website uptime.
 
 ## Quick start
 
@@ -20,20 +20,30 @@ For editing with hot reload, run `./scripts/dev.sh` and open **http://127.0.0.1:
 
 ## Demo walkthrough
 
-1. Select a campaign in the incident queue. Review its severity, model probability, shared entities, and timestamped evidence.
-2. Investigate the incident. The local investigator explains the detected features and proposes defensive actions.
-3. Review each proposal individually. Approve only after entering analyst details and explicitly confirming, or reject it.
-4. Inspect response verification, simulated host/session state, and the audit trail. Rejected and pending actions never execute.
-5. Reset the simulation, then step through or replay all events to watch incidents form.
-6. Re-run evaluation to see metrics calculated from the labeled local holdout fixtures.
+1. Open the agent overview and run a patrol. It analyzes the currently loaded synthetic events, investigates correlated incidents, and creates pending recommendations without executing them.
+2. Review patrol history, source coverage, event-volume charts, authentication failures, outbound bytes, and host status. Charts are derived from actual loaded fixtures.
+3. Optionally enable recurring patrols and choose an interval. The default schedule is paused.
+4. Choose **Review incidents** and inspect a campaign's severity, probability, shared entities, and timestamped evidence. Investigate it again when needed.
+5. Review each response individually. Approve only after entering analyst details and explicitly confirming, or reject it.
+6. Inspect response verification and audit history. Reset and replay events to explore progression, or re-run evaluation for measured local holdout results.
 
 ## How it works
 
 - **Detection:** a Bernoulli naive Bayes classifier is trained locally on `data/train.json`. Its observable features cover credential lures, sender mismatch, abnormal authentication, MFA fatigue, beaconing, unusual outbound volume, prompt overrides, and obfuscation. Test labels, entity names, and event IDs do not enter prediction features.
 - **Correlation:** shared identities, hosts, or addresses within a bounded time window connect telemetry into campaigns. Linked benign context remains available as evidence. Severity reflects suspicious activity and attack progression.
 - **Investigation:** deterministic evidence explanations summarize the local model's findings and associated event IDs. This is explainable statistical AI, **not a hosted LLM**. No API key is required.
+- **Patrols:** a backend scheduler reclassifies existing simulated telemetry, updates event predictions, correlates campaigns, and investigates incidents. It may create pending recommendations, but never approves or executes containment. Manual runs, scheduled runs, durations, failures, and coverage are recorded in SQLite.
+- **Analytics:** source, category, and host totals reconcile to loaded telemetry. Time windows (15 minutes, 1 hour, 24 hours) anchor to the latest event timestamp, not the current clock. Authentication failures include denied MFA prompts and failed/denied logins.
 - **Response:** only approved actions change isolated SQLite host/session state. Approval, execution, verification, and audit recording are coordinated by the backend. There is no shell execution, scanning, real identity-provider access, or network containment.
 - **Interface:** React, TypeScript, Tailwind CSS, Vite, and Lucide icons; FastAPI serves the API and built frontend. Polling keeps the event feed current.
+
+## Background patrol scheduling
+
+The schedule is **paused by default**. Enabling it persists the interval and next due time in SQLite. The FastAPI lifespan starts one scheduler thread, so due patrols continue while the backend is running even when the browser is closed. Use **one Uvicorn worker**; this prototype has no distributed scheduler or cross-process job ownership.
+
+Intervals range from 30 seconds to 24 hours. Manual and scheduled runs cannot overlap. A completed or failed run schedules the next interval from its completion; missed intervals are not replayed as a backlog. A persisted overdue schedule can run once after backend restart. Pausing prevents future scheduled scans; an already running scan may finish. Closing the backend stops scheduling. Reset clears telemetry and sandbox response state but retains audit history, patrol history, and schedule settings; pause first if you want an entirely quiet demo.
+
+A patrol is analysis of stored synthetic telemetry, not a website crawler, attack, collector, health check, or real containment agent. "Coverage" counts represented synthetic sources, and process uptime describes this backend process only.
 
 ## Safety and limitations
 
@@ -71,7 +81,7 @@ npx playwright install chromium  # only needed if Chromium is not installed
 npm run test:e2e
 ```
 
-Override browser location with `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chromium` when needed. The verified suite includes 22 backend tests and 2 browser tests. Desktop/mobile captures are written to ignored `artifacts/`.
+Override browser location with `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chromium` when needed. The suite includes approval, scheduler, analytics, and browser workflow regression tests. Desktop/mobile captures are written to ignored `artifacts/`.
 
 Refresh the saved measured report with `backend/.venv/bin/python scripts/evaluate.py`; results are in `docs/evaluation-results.json`. See `docs/architecture.md` for extension points and the official sandbox integration boundary.
 
@@ -82,6 +92,7 @@ Refresh the saved measured report with `backend/.venv/bin/python scripts/evaluat
 | `frontend/src/` | Dashboard, approval UX, styles, API client |
 | `backend/app/main.py` | API routes, request validation, orchestration |
 | `backend/app/store.py` | SQLite state, correlation, sandbox responses |
+| `backend/app/patrol.py` | Single-process background patrol scheduling |
 | `backend/app/detection.py` | Model features, training, explanations, metrics |
 | `scripts/generate_data.py` | Synthetic scenario and benchmark generation |
 | `data/*.json` | Committed training, evaluation, and replay fixtures |

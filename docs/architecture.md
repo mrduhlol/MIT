@@ -12,6 +12,14 @@ This is a local, single-operator prototype. React calls a FastAPI service over `
 
 The service joins related events using identity, host or IP within a bounded time window, then derives campaign severity from the observed categories and progression. Shared entities are heuristic links, not proof of causality. Shared infrastructure can over-correlate unrelated events; clean stolen sessions can evade the feature detector. Model probabilities are uncalibrated.
 
+## Background agent and telemetry analytics
+
+`backend/app/patrol.py` starts one scheduler thread in the FastAPI lifespan. Its persisted settings default to paused. It runs independently of browser polling while the service is alive; one Uvicorn worker is required because there is no distributed job lease. A nonblocking patrol lock prevents overlapping manual and scheduled scans. The due time is rechecked under the database lock, so a stale scheduler wake cannot start work after the schedule was paused. Each finished run advances the next due time from completion, avoiding catch-up bursts.
+
+A patrol reclassifies the already ingested synthetic events, persists fresh findings, correlates campaigns, and invokes the same evidence investigation used by the UI. Investigation creates pending proposals idempotently and preserves existing approved/rejected decisions. Patrol never calls the containment decision path. Completed and failed scans record measured duration, event and incident counts, trigger, and audit history; up to 100 run records are retained.
+
+`GET /api/analytics` computes exact source/category/host totals and a bucketed series over a 15-minute, 60-minute, or 24-hour window anchored to the latest event timestamp. The last bucket includes the anchor event. Category counts deduplicate a category within each suspicious event. Auth-failure counts include denied MFA prompts plus failed/denied login events. Empty telemetry has no invented time axis. These are fixture-derived analytics, not live website traffic, machine utilization, availability, or production security metrics.
+
 ## Human approval boundary
 
 Investigation creates proposals only. The decision endpoint validates an explicit approval flag and operator input before a transaction changes local sandbox state. Rejected or previously decided proposals cannot execute. Each action applies only to its stored target; request bodies cannot substitute a target or arbitrary command. A session token protects mutation endpoints from simple cross-origin requests. This is not multi-user authentication or tamper-proof audit storage; bind the service to loopback.

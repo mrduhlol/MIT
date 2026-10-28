@@ -303,6 +303,10 @@ class Store:
                             return None
                     events = [json.loads(row['payload']) for row in db.execute('SELECT payload FROM events')]
                     analyzed = [{**e, **self.detector.predict(e)} for e in events]
+                    # Publish the fresh predictions before investigation so all
+                    # dashboard evidence and recommendations use this patrol's model output.
+                    for event in analyzed:
+                        db.execute('UPDATE events SET payload=? WHERE id=?', (json.dumps(event), event['id']))
                     incidents = correlate(analyzed)
                     run.update(events_analyzed=len(events), incidents_found=len(incidents),
                         suspicious_events=sum(e['suspicious'] for e in analyzed))
